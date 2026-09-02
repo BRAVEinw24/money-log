@@ -1,4 +1,4 @@
-﻿const { formidable } = require('formidable');
+const { formidable } = require('formidable');
 const { google } = require('googleapis');
 
 module.exports = async (req, res) => {
@@ -80,20 +80,27 @@ module.exports = async (req, res) => {
       }
     }
 
-    // Step 2: Check if Sheet needs Header Row
+    // Step 2: Check if Sheet needs Header Row or Summary Formulas
     try {
       const checkRange = await sheets.spreadsheets.values.get({
         spreadsheetId: process.env.GOOGLE_SHEET_ID,
-        range: `${tabName}!A1:F1`,
+        range: `${tabName}!A1:I1`,
       });
-      if (!checkRange.data.values || checkRange.data.values.length === 0) {
-        // Automatically insert clean gamified headers
+      const existingHeaders = checkRange.data.values?.[0] || [];
+      if (existingHeaders.length === 0) {
+        // Automatically insert clean headers AND KPI summary block
         await sheets.spreadsheets.values.update({
           spreadsheetId: process.env.GOOGLE_SHEET_ID,
-          range: `${tabName}!A1:F1`,
+          range: `${tabName}!A1:I5`,
           valueInputOption: 'USER_ENTERED',
           requestBody: {
-            values: [['Timestamp', 'Date', 'Type', 'Category', 'Amount (THB)', 'Description']]
+            values: [
+              ['Timestamp', 'Date', 'Type', 'Category', 'Amount (THB)', 'Description', '', '📊 SUMMARY', '฿ (THB)'],
+              ['', '', '', '', '', '', '', '🟢 Total Income', '=SUMIF(C:C, "Income", E:E)'],
+              ['', '', '', '', '', '', '', '🔴 Total Expense', '=SUMIF(C:C, "Expense", E:E)'],
+              ['', '', '', '', '', '', '', '🔵 Combined Net', '=I2 - I3'],
+              ['', '', '', '', '', '', '', '⭐ Savings Rate', '=IF(I2>0, (I2-I3)/I2, 0)']
+            ]
           }
         });
       }

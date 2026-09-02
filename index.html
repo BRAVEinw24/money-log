@@ -828,20 +828,16 @@
     <!-- Playable Google Sheet Formula Pro-Tips Drawer -->
     <div class="formula-card">
       <div class="formula-header" id="formulaToggle">
-        <span>🎮 How to make your Google Sheet Playable</span>
+        <span>🎮 Apply Colors & Totals to Google Sheet</span>
         <i data-lucide="chevron-down" id="formulaChevron" style="width:18px; height:18px;"></i>
       </div>
       <div class="formula-content" id="formulaContent">
-        <p>In your Google Sheet, add these powerful formulas to a separate tab (e.g. <strong>Dashboard</strong>) to view your stats live:</p>
-        <br>
-        <strong>1. Total Monthly Income:</strong>
-        <div class="code-box">=SUMIF(Transactions!C:C, "Income", Transactions!E:E)</div>
-        <strong>2. Total Monthly Expense:</strong>
-        <div class="code-box">=SUMIF(Transactions!C:C, "Expense", Transactions!E:E)</div>
-        <strong>3. Net Savings:</strong>
-        <div class="code-box">=B1 - B2</div>
-        <strong>4. Visual Mini Sparkline Bar:</strong>
-        <div class="code-box">=SPARKLINE(B2, {"charttype","bar";"max",50000;"color1","#FF453A"})</div>
+        <p style="margin-bottom: 12px;">Apply instant category color-coding and live KPI summary formulas directly into your Google Sheet:</p>
+        <button class="ios-btn btn-primary" id="btn-format-sheet" style="width: 100%; padding: 12px; margin-bottom: 12px; font-size: 14px;">
+          <i data-lucide="palette" style="width: 16px; height: 16px;"></i> 1-Click: Color & Format My Sheet
+        </button>
+        <div id="formatStatus" class="status-box" style="margin-top:0; margin-bottom:12px;"></div>
+        <p style="font-size: 12px; color: var(--text-tertiary);">This automatically adds: Frozen header row, currency formatting, Total Income/Expense/Net formulas in Columns H:I, and distinct pastel colors for every category.</p>
       </div>
     </div>
 
@@ -956,6 +952,25 @@
       btnReloadStats.onclick = () => {
         showStatus('#status', 'Syncing live stats from Google Sheet…', 'info');
         fetchLiveStats().then(() => hideStatus('#status'));
+      };
+    }
+
+    const btnFormatSheet = $('#btn-format-sheet');
+    if (btnFormatSheet) {
+      btnFormatSheet.onclick = async () => {
+        btnFormatSheet.disabled = true;
+        showStatus('#formatStatus', 'Applying colors & formulas to your Google Sheet…', 'info');
+        try {
+          const res = await fetch('/api/format-sheet');
+          const d = await res.json();
+          if (!res.ok) throw Error(d.error || 'Failed to format sheet');
+          showStatus('#formatStatus', `✨ Success: Applied 10 Category Colors and KPI formulas to "${d.tabName}"!`, 'ok');
+          fetchLiveStats();
+        } catch (e) {
+          showStatus('#formatStatus', e.message, 'error');
+        } finally {
+          btnFormatSheet.disabled = false;
+        }
       };
     }
 
