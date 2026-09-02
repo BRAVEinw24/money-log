@@ -7,19 +7,33 @@ module.exports = async (req, res) => {
   const form = formidable({ multiples: false, maxFileSize: 10 * 1024 * 1024 });
   try {
     const [, files] = await form.parse(req);
-    const receipt = files.receipt?.[0];
-    if (!receipt) return res.status(400).json({ error: 'Receipt file is required' });
-    const credentials = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON ? JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON) : undefined;
-    const client = new ImageAnnotatorClient(credentials ? { credentials } : {});
-    const [result] = await client.documentTextDetection({ image: { content: fs.readFileSync(receipt.filepath) } });
+    const receipt = Array.isArray(files.receipt) ? files.receipt[0] : files.receipt;
+    if (!receipt || !receipt.filepath) return res.status(400).json({ error: 'Receipt file is required' });
+
+    let clientConfig = {};
+    if (process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON) {
+      try {
+        const credentials = typeof process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON === 'string'
+          ? JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON)
+          : process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
+        clientConfig = { credentials };
+      } catch (err) {
+        console.error('Failed to parse GOOGLE_APPLICATION_CREDENTIALS_JSON:', err);
+      }
+    }
+
+    const client = new ImageAnnotatorClient(clientConfig);
+    const fileContent = fs.readFileSync(receipt.filepath);
+    const [result] = await client.documentTextDetection({ image: { content: fileContent } });
     const text = result.fullTextAnnotation?.text || '';
     const amount = findAmount(text);
     return res.status(200).json({ amount, description: '', rawText: text.slice(0, 1000) });
   } catch (e) {
-    console.error(e);
-    return res.status(500).json({ error: 'OCR failed. Check Google Cloud Vision credentials.' });
+    console.error('OCR failed:', e);
+    return res.status(500).json({ error: e.message || 'OCR failed. Check Google Cloud Vision credentials.' });
   }
 };
+
 function findAmount(text) {
   const lines = text.split(/\r?\n/).map(x => x.trim()).filter(Boolean);
   const candidates = [];
@@ -33,3 +47,10 @@ function findAmount(text) {
   candidates.sort((a, b) => b.priority - a.priority || b.n - a.n);
   return candidates[0]?.n ?? null;
 }
+
+module.exports.config = {
+  api: {
+    bodyParser: false,
+  },
+};
+
