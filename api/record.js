@@ -19,15 +19,31 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: 'amount, type, category, and date are required' });
     }
 
+    if (!process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON) {
+      return res.status(500).json({
+        error: 'GOOGLE_APPLICATION_CREDENTIALS_JSON is not set in Vercel environment variables.'
+      });
+    }
+
     let credentials;
-    if (process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON) {
-      try {
-        credentials = typeof process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON === 'string'
-          ? JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON)
-          : process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
-      } catch (err) {
-        console.error('Failed to parse GOOGLE_APPLICATION_CREDENTIALS_JSON:', err);
-      }
+    try {
+      credentials = typeof process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON === 'string'
+        ? JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON)
+        : process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
+    } catch (err) {
+      return res.status(500).json({
+        error: `Failed to parse GOOGLE_APPLICATION_CREDENTIALS_JSON: ${err.message}`
+      });
+    }
+
+    if (credentials.installed || credentials.web) {
+      return res.status(500).json({
+        error: 'GOOGLE_APPLICATION_CREDENTIALS_JSON is an OAuth client key. Please use a Service Account JSON key.'
+      });
+    }
+
+    if (typeof credentials.private_key === 'string') {
+      credentials.private_key = credentials.private_key.replace(/\\n/g, '\n');
     }
 
     const auth = new google.auth.GoogleAuth({
