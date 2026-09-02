@@ -7,7 +7,6 @@ module.exports = async (req, res) => {
     env: {
       GOOGLE_SHEET_ID: process.env.GOOGLE_SHEET_ID ? 'Configured (' + process.env.GOOGLE_SHEET_ID.slice(0, 6) + '...)' : 'MISSING',
       GOOGLE_SHEET_TAB: process.env.GOOGLE_SHEET_TAB || 'Auto-detecting first tab',
-      GOOGLE_DRIVE_FOLDER_ID: process.env.GOOGLE_DRIVE_FOLDER_ID ? 'Configured (' + process.env.GOOGLE_DRIVE_FOLDER_ID.slice(0, 6) + '...)' : 'MISSING',
       GOOGLE_APPLICATION_CREDENTIALS_JSON: process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON ? 'Present' : 'MISSING'
     },
     credentialsValidation: {
@@ -17,8 +16,7 @@ module.exports = async (req, res) => {
       projectId: null,
       privateKeyFormatted: false
     },
-    googleSheetCheck: 'not_run',
-    googleDriveCheck: 'not_run'
+    googleSheetCheck: 'not_run'
   };
 
   if (!process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON) {
@@ -42,7 +40,7 @@ module.exports = async (req, res) => {
   if (credentials.installed || credentials.web) {
     diagnostics.status = 'error';
     diagnostics.credentialsValidation.credentialType = 'OAuth Client ID (Installed/Web)';
-    diagnostics.message = 'You uploaded an OAuth Client ID key. Vercel backend requires a Google Cloud Service Account JSON key.';
+    diagnostics.message = 'You uploaded an OAuth Client ID key. A Google Cloud Service Account JSON key is required.';
     return res.status(200).json(diagnostics);
   }
 
@@ -57,16 +55,12 @@ module.exports = async (req, res) => {
 
   const auth = new google.auth.GoogleAuth({
     credentials,
-    scopes: [
-      'https://www.googleapis.com/auth/drive',
-      'https://www.googleapis.com/auth/spreadsheets',
-    ],
+    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
   });
 
   const sheets = google.sheets({ version: 'v4', auth });
-  const drive = google.drive({ version: 'v3', auth });
 
-  // Test Google Sheet Access
+  // Test Google Sheet Access & Tab Discovery
   if (process.env.GOOGLE_SHEET_ID) {
     try {
       const meta = await sheets.spreadsheets.get({ spreadsheetId: process.env.GOOGLE_SHEET_ID });
@@ -82,23 +76,6 @@ module.exports = async (req, res) => {
         accessible: false,
         error: sheetErr.message,
         actionRequired: `Share your Google Sheet with: ${credentials.client_email} as Editor.`
-      };
-    }
-  }
-
-  // Test Google Drive Access
-  if (process.env.GOOGLE_DRIVE_FOLDER_ID) {
-    try {
-      const folder = await drive.files.get({ fileId: process.env.GOOGLE_DRIVE_FOLDER_ID, fields: 'id,name' });
-      diagnostics.googleDriveCheck = {
-        accessible: true,
-        folderName: folder.data.name
-      };
-    } catch (driveErr) {
-      diagnostics.googleDriveCheck = {
-        accessible: false,
-        warning: driveErr.message,
-        actionRequired: `Share the Google Drive receipt folder with: ${credentials.client_email} as Editor.`
       };
     }
   }
