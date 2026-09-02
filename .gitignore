@@ -1,0 +1,4 @@
+.vercel
+*.log
+moneylog-live.html
+ocr-result.json
