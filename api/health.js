@@ -1,4 +1,4 @@
-﻿const { ImageAnnotatorClient } = require('@google-cloud/vision');
+﻿const { google } = require('googleapis');
 
 module.exports = async (req, res) => {
   const diagnostics = {
@@ -6,7 +6,7 @@ module.exports = async (req, res) => {
     timestamp: new Date().toISOString(),
     env: {
       GOOGLE_SHEET_ID: process.env.GOOGLE_SHEET_ID ? 'Configured (' + process.env.GOOGLE_SHEET_ID.slice(0, 6) + '...)' : 'MISSING',
-      GOOGLE_SHEET_TAB: process.env.GOOGLE_SHEET_TAB || 'Default (Transactions)',
+      GOOGLE_SHEET_TAB: process.env.GOOGLE_SHEET_TAB || 'Auto-detecting first tab',
       GOOGLE_DRIVE_FOLDER_ID: process.env.GOOGLE_DRIVE_FOLDER_ID ? 'Configured (' + process.env.GOOGLE_DRIVE_FOLDER_ID.slice(0, 6) + '...)' : 'MISSING',
       GOOGLE_APPLICATION_CREDENTIALS_JSON: process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON ? 'Present' : 'MISSING'
     },
@@ -17,7 +17,8 @@ module.exports = async (req, res) => {
       projectId: null,
       privateKeyFormatted: false
     },
-    visionApiCheck: 'not_run'
+    googleSheetCheck: 'not_run',
+    googleDriveCheck: 'not_run'
   };
 
   if (!process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON) {
@@ -54,15 +55,52 @@ module.exports = async (req, res) => {
     credentials.private_key = credentials.private_key.replace(/\\n/g, '\n');
   }
 
-  try {
-    const client = new ImageAnnotatorClient({ credentials });
-    // Quick probe with empty/dummy payload to test authentication handshake
-    await client.getProjectId();
-    diagnostics.visionApiCheck = 'authenticated_successfully';
-  } catch (e) {
-    diagnostics.status = 'error';
-    diagnostics.visionApiCheck = `failed: ${e.message}`;
-    diagnostics.message = `Google Cloud Vision authentication check failed: ${e.message}`;
+  const auth = new google.auth.GoogleAuth({
+    credentials,
+    scopes: [
+      'https://www.googleapis.com/auth/drive',
+      'https://www.googleapis.com/auth/spreadsheets',
+    ],
+  });
+
+  const sheets = google.sheets({ version: 'v4', auth });
+  const drive = google.drive({ version: 'v3', auth });
+
+  // Test Google Sheet Access
+  if (process.env.GOOGLE_SHEET_ID) {
+    try {
+      const meta = await sheets.spreadsheets.get({ spreadsheetId: process.env.GOOGLE_SHEET_ID });
+      const tabNames = meta.data.sheets?.map(s => s.properties?.title) || [];
+      diagnostics.googleSheetCheck = {
+        accessible: true,
+        title: meta.data.properties?.title || 'Untitled Sheet',
+        availableTabs: tabNames
+      };
+    } catch (sheetErr) {
+      diagnostics.status = 'error';
+      diagnostics.googleSheetCheck = {
+        accessible: false,
+        error: sheetErr.message,
+        actionRequired: `Share your Google Sheet with: ${credentials.client_email} as Editor.`
+      };
+    }
+  }
+
+  // Test Google Drive Access
+  if (process.env.GOOGLE_DRIVE_FOLDER_ID) {
+    try {
+      const folder = await drive.files.get({ fileId: process.env.GOOGLE_DRIVE_FOLDER_ID, fields: 'id,name' });
+      diagnostics.googleDriveCheck = {
+        accessible: true,
+        folderName: folder.data.name
+      };
+    } catch (driveErr) {
+      diagnostics.googleDriveCheck = {
+        accessible: false,
+        warning: driveErr.message,
+        actionRequired: `Share the Google Drive receipt folder with: ${credentials.client_email} as Editor.`
+      };
+    }
   }
 
   return res.status(200).json(diagnostics);
