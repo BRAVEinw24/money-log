@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -118,56 +118,130 @@
       box-shadow: 0 0 8px var(--ios-green);
     }
 
-    /* Gamified HUD Card */
-    .hud-card {
-      background: linear-gradient(180deg, #1C1C1E 0%, #161618 100%);
+    /* Financial Overview & Net Balance Card */
+    .overview-card {
+      background: linear-gradient(180deg, #1C1C1E 0%, #151517 100%);
       border: 1px solid var(--border);
-      border-radius: 20px;
-      padding: 16px 18px;
+      border-radius: 22px;
+      padding: 22px 20px;
       margin-bottom: 20px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6);
+    }
+
+    .net-balance-group {
+      text-align: center;
+      padding-bottom: 18px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 16px;
+    }
+
+    .net-sublabel {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-secondary);
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .net-amount {
+      font-size: 38px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    .net-amount.positive { color: var(--ios-green); }
+    .net-amount.negative { color: var(--ios-red); }
+
+    .totals-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
       gap: 12px;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
     }
 
-    .hud-item {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
+    .total-box {
+      background: rgba(44, 44, 46, 0.5);
+      border-radius: 14px;
+      padding: 12px 14px;
+      border: 1px solid var(--border);
     }
 
-    .hud-label {
+    .total-title {
       font-size: 11px;
       font-weight: 600;
       color: var(--text-secondary);
       text-transform: uppercase;
       letter-spacing: 0.05em;
-    }
-
-    .hud-val {
-      font-size: 18px;
-      font-weight: 800;
-      font-family: var(--font-family);
-    }
-
-    .hud-val.green { color: var(--ios-green); }
-    .hud-val.red { color: var(--ios-red); }
-    .hud-val.blue { color: var(--ios-blue); }
-
-    .hud-pill {
-      font-size: 11px;
-      font-weight: 700;
-      padding: 4px 10px;
-      border-radius: 12px;
-      background: rgba(191, 90, 242, 0.15);
-      color: var(--ios-purple);
-      border: 1px solid rgba(191, 90, 242, 0.3);
       display: flex;
       align-items: center;
-      gap: 4px;
+      gap: 6px;
+      margin-bottom: 4px;
     }
+
+    .total-val {
+      font-size: 20px;
+      font-weight: 800;
+    }
+
+    .total-val.green { color: var(--ios-green); }
+    .total-val.red { color: var(--ios-red); }
+
+    /* Category Storage-Style Bar */
+    .category-bar-section {
+      margin-top: 18px;
+    }
+
+    .category-bar-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+    }
+
+    .category-bar {
+      width: 100%;
+      height: 12px;
+      background: #2C2C2E;
+      border-radius: 6px;
+      overflow: hidden;
+      display: flex;
+      margin-bottom: 12px;
+    }
+
+    .category-segment {
+      height: 100%;
+      transition: width 0.3s ease;
+    }
+
+    .category-legend-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .cat-badge-pill {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 20px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--card-secondary);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+    }
+
+    .cat-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
 
     /* iOS Segmented Control */
     .segmented-control {
@@ -596,34 +670,55 @@
     <header class="nav-bar">
       <div class="brand-group">
         <div class="app-icon">
-          <i data-lucide="sheet"></i>
+          <i data-lucide="wallet-cards"></i>
         </div>
         <div class="brand-text">
           <h1>Money Log</h1>
-          <p>Playable Google Sheet Ledger</p>
+          <p id="sheet-title-text">Connecting to Google Sheet…</p>
         </div>
       </div>
-      <div class="sync-status-badge">
-        <span class="status-dot"></span>
-        <span id="connection">Sheet Ready</span>
-      </div>
+      <button class="btn-refresh" id="btn-reload-stats" style="background:var(--card-secondary); border:1px solid var(--border); color:var(--text-secondary); padding:6px 12px; border-radius:20px; font-size:12px; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:6px;">
+        <i data-lucide="rotate-cw" style="width: 13px; height: 13px;"></i> Sync
+      </button>
     </header>
 
-    <!-- Session Financial HUD -->
-    <div class="hud-card">
-      <div class="hud-item">
-        <span class="hud-label">Logged Income</span>
-        <span class="hud-val green" id="hud-income">+฿0.00</span>
+    <!-- Combined Net Financial Overview Card -->
+    <section class="overview-card">
+      <div class="net-balance-group">
+        <div class="net-sublabel">Combined Net Balance</div>
+        <div class="net-amount" id="stat-net">฿0.00</div>
       </div>
-      <div class="hud-item">
-        <span class="hud-label">Logged Expense</span>
-        <span class="hud-val red" id="hud-expense">-฿0.00</span>
+
+      <div class="totals-row">
+        <div class="total-box">
+          <div class="total-title">
+            <i data-lucide="arrow-down-left" style="width: 14px; height: 14px; color: var(--ios-green);"></i> Total Income
+          </div>
+          <div class="total-val green" id="stat-income">+฿0.00</div>
+        </div>
+
+        <div class="total-box">
+          <div class="total-title">
+            <i data-lucide="arrow-up-right" style="width: 14px; height: 14px; color: var(--ios-red);"></i> Total Expense
+          </div>
+          <div class="total-val red" id="stat-expense">-฿0.00</div>
+        </div>
       </div>
-      <div class="hud-item" style="text-align:right;">
-        <span class="hud-label">Net Cashflow</span>
-        <span class="hud-val blue" id="hud-net">฿0.00</span>
+
+      <!-- Category Colors Breakdown Bar -->
+      <div class="category-bar-section">
+        <div class="category-bar-header">
+          <span>Expense by Category</span>
+          <span id="stat-tx-count">0 Records</span>
+        </div>
+        <div class="category-bar" id="categorySegments">
+          <div class="category-segment" style="width: 100%; background: #2C2C2E;"></div>
+        </div>
+        <div class="category-legend-grid" id="categoryLegend">
+          <!-- Dynamic category pills with colors -->
+        </div>
       </div>
-    </div>
+    </section>
 
     <!-- Expense / Income Segmented Control -->
     <div class="segmented-control">
@@ -764,28 +859,104 @@
     let type = 'expense';
     let file = null;
 
-    // Session HUD tallies
-    let sessionIncome = 0;
-    let sessionExpense = 0;
+    // Distinct Category Color Palette (iOS System Dark Theme)
+    const categoryPalette = {
+      'Food': { color: '#FF9500', icon: '🍽️', label: 'Food & Dining' },
+      'Transport': { color: '#0A84FF', icon: '🚗', label: 'Transportation' },
+      'Shopping': { color: '#FF2D55', icon: '🛍️', label: 'Shopping' },
+      'Bills': { color: '#FFD60A', icon: '⚡', label: 'Utilities & Bills' },
+      'Health': { color: '#30D158', icon: '💊', label: 'Health & Medical' },
+      'Home': { color: '#D1A374', icon: '🏠', label: 'Home & Living' },
+      'Education': { color: '#BF5AF2', icon: '📚', label: 'Education' },
+      'Entertainment': { color: '#5E5CE6', icon: '🎬', label: 'Entertainment' },
+      'Investments': { color: '#64D2FF', icon: '📈', label: 'Investments' },
+      'Salary': { color: '#32D74B', icon: '💼', label: 'Salary / Income' },
+      'Other': { color: '#8E8E93', icon: '✨', label: 'Other' }
+    };
 
     const $ = s => document.querySelector(s);
     const today = new Date().toISOString().slice(0, 10);
     $('#date').value = today;
 
     // Toggle Playable Formulas Drawer
-    $('#formulaToggle').onclick = () => {
-      const content = $('#formulaContent');
-      const isShowing = content.classList.toggle('show');
-      $('#formulaChevron').style.transform = isShowing ? 'rotate(180deg)' : 'rotate(0deg)';
-    };
+    const formulaToggle = $('#formulaToggle');
+    if (formulaToggle) {
+      formulaToggle.onclick = () => {
+        const content = $('#formulaContent');
+        const isShowing = content.classList.toggle('show');
+        $('#formulaChevron').style.transform = isShowing ? 'rotate(180deg)' : 'rotate(0deg)';
+      };
+    }
 
-    function updateHUD() {
-      $('#hud-income').textContent = `+฿${sessionIncome.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
-      $('#hud-expense').textContent = `-฿${sessionExpense.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
-      const net = sessionIncome - sessionExpense;
-      const netEl = $('#hud-net');
-      netEl.textContent = `${net >= 0 ? '+' : ''}฿${net.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
-      netEl.className = `hud-val ${net >= 0 ? 'green' : 'red'}`;
+    async function fetchLiveStats() {
+      try {
+        const res = await fetch('/api/stats');
+        const data = await res.json();
+        if (data.ok) {
+          $('#sheet-title-text').textContent = `Connected: ${data.tabName || 'Sheet1'}`;
+          const net = data.netBalance || 0;
+          const netEl = $('#stat-net');
+          netEl.textContent = `${net >= 0 ? '+' : ''}฿${net.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+          netEl.className = `net-amount ${net >= 0 ? 'positive' : 'negative'}`;
+
+          $('#stat-income').textContent = `+฿${(data.totalIncome || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+          $('#stat-expense').textContent = `-฿${(data.totalExpense || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+          $('#stat-tx-count').textContent = `${data.totalTransactions || 0} Records`;
+
+          renderCategoryBar(data.categoryTotals || {}, data.totalExpense || 0);
+        } else {
+          $('#sheet-title-text').textContent = 'Google Sheet Ready';
+        }
+      } catch (err) {
+        $('#sheet-title-text').textContent = 'Google Sheet Active';
+      }
+    }
+
+    function renderCategoryBar(catTotals, totalExpense) {
+      const segContainer = $('#categorySegments');
+      const legContainer = $('#categoryLegend');
+      if (!segContainer || !legContainer) return;
+
+      segContainer.innerHTML = '';
+      legContainer.innerHTML = '';
+      const entries = Object.entries(catTotals).filter(([, val]) => val > 0);
+
+      if (entries.length === 0 || totalExpense <= 0) {
+        segContainer.innerHTML = '<div class="category-segment" style="width: 100%; background: #2C2C2E;"></div>';
+        legContainer.innerHTML = '<span style="font-size:12px; color:var(--text-secondary);">No expenses recorded yet.</span>';
+        return;
+      }
+
+      entries.sort((a, b) => b[1] - a[1]);
+
+      entries.forEach(([cat, val]) => {
+        const info = categoryPalette[cat] || categoryPalette['Other'];
+        const pct = Math.max(3, Math.round((val / totalExpense) * 100));
+
+        const seg = document.createElement('div');
+        seg.className = 'category-segment';
+        seg.style.width = `${pct}%`;
+        seg.style.backgroundColor = info.color;
+        seg.title = `${cat}: ฿${val.toLocaleString()} (${pct}%)`;
+        segContainer.appendChild(seg);
+
+        const pill = document.createElement('div');
+        pill.className = 'cat-badge-pill';
+        pill.innerHTML = `
+          <span class="cat-dot" style="background-color: ${info.color}"></span>
+          <span>${info.icon} ${cat}</span>
+          <strong style="color:${info.color}">฿${val.toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong>
+        `;
+        legContainer.appendChild(pill);
+      });
+    }
+
+    const btnReloadStats = $('#btn-reload-stats');
+    if (btnReloadStats) {
+      btnReloadStats.onclick = () => {
+        showStatus('#status', 'Syncing live stats from Google Sheet…', 'info');
+        fetchLiveStats().then(() => hideStatus('#status'));
+      };
     }
 
     function setType(t) {
@@ -798,6 +969,7 @@
     $('#income').onclick = () => setType('income');
 
     $('#slip').onchange = e => {
+
       file = e.target.files[0] || null;
       $('#scan').disabled = !file;
       if (file) {
@@ -987,15 +1159,8 @@
         const d = await r.json();
         if (!r.ok) throw Error(d.error || 'Failed to save transaction');
 
-        // Update session stats
-        if (type === 'income') {
-          sessionIncome += amount;
-        } else {
-          sessionExpense += amount;
-        }
-        updateHUD();
-
-        showStatus('#saveStatus', `Logged to Google Sheet row ${d.rowNumber || ''} (${type === 'income' ? '💰 Income' : '🔥 Expense'}).`, 'ok');
+        showStatus('#saveStatus', `Saved to Google Sheet row ${d.rowNumber || ''} (${type === 'income' ? '💰 Income' : '🔥 Expense'})!`, 'ok');
+        fetchLiveStats();
       } catch (e) {
         showStatus('#saveStatus', e.message, 'error');
       } finally {
@@ -1018,6 +1183,9 @@
     }
 
     $('#reset-all').onclick = clearAll;
+
+    // Fetch live statistics on startup
+    fetchLiveStats();
   </script>
 </body>
 </html>
