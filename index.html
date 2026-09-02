@@ -8,6 +8,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Client-Side On-Device OCR (100% Free - No Google Cloud Billing Required) -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <style>
     :root {
       --bg: #000000;
@@ -464,7 +466,7 @@
       </div>
       <div class="sync-status-badge">
         <span class="status-dot"></span>
-        <span id="connection">Ready</span>
+        <span id="connection">Free OCR Active</span>
       </div>
     </header>
 
@@ -509,7 +511,7 @@
           </div>
           <div class="upload-text">
             <strong>Choose Slip or Receipt Image</strong>
-            <span>Total amount will be recognized automatically</span>
+            <span>100% Free on-device OCR — no cloud billing required</span>
           </div>
           <input id="slip" type="file" accept="image/*,.pdf">
         </label>
@@ -520,8 +522,8 @@
       </div>
 
       <div class="btn-row">
-        <button class="ios-btn btn-secondary" id="reset">
-          <i data-lucide="rotate-ccw" style="width: 16px; height: 16px;"></i> Reset
+        <button class="ios-btn btn-secondary" id="manual-entry">
+          <i data-lucide="edit-3" style="width: 16px; height: 16px;"></i> Enter Manually
         </button>
         <button class="ios-btn btn-primary" id="scan" disabled>
           <i data-lucide="scan" style="width: 18px; height: 18px;"></i> Read Amount
@@ -547,7 +549,7 @@
 
       <div class="form-group">
         <label class="form-label" for="description">Description (Optional)</label>
-        <input id="description" class="ios-input" placeholder="e.g. 7-Eleven, Starbucks, Grab">
+        <input id="description" class="ios-input" placeholder="e.g. 7-Eleven, Starbucks, Grab, PromptPay">
       </div>
 
       <div class="form-group">
@@ -556,8 +558,8 @@
       </div>
 
       <div class="btn-row">
-        <button class="ios-btn btn-secondary" id="rescan">
-          <i data-lucide="refresh-cw" style="width: 16px; height: 16px;"></i> Rescan
+        <button class="ios-btn btn-secondary" id="reset-all">
+          <i data-lucide="rotate-ccw" style="width: 16px; height: 16px;"></i> Clear
         </button>
         <button class="ios-btn btn-success" id="save">
           <i data-lucide="cloud-upload" style="width: 18px; height: 18px;"></i> Confirm & Save
@@ -569,8 +571,8 @@
 
     <!-- iOS Inset Footer Info -->
     <footer class="ios-footer">
-      <p>Securely syncs receipt image to Google Drive & logs row to Google Sheet.</p>
-      <a href="/api/health" target="_blank">View Live API Health & Credentials Diagnostic ↗</a>
+      <p>Free On-Device OCR + Google Drive Receipt Storage & Sheets Ledger.</p>
+      <a href="/api/health" target="_blank">View Live API Diagnostic ↗</a>
     </footer>
 
   </div>
@@ -580,7 +582,6 @@
 
     let type = 'expense';
     let file = null;
-    let scanResult = null;
 
     const $ = s => document.querySelector(s);
     const today = new Date().toISOString().slice(0, 10);
@@ -621,45 +622,98 @@
       el.innerHTML = '';
     }
 
+    // Smart heuristic to extract total amount from OCR text
+    function parseAmountFromText(text) {
+      const lines = text.split(/\r?\n/).map(x => x.trim()).filter(Boolean);
+      const candidates = [];
+
+      for (const line of lines) {
+        const matches = line.match(/(?:฿|บาท|thb|total|ยอดรวม|รวมทั้งสิ้น|amount|ยอดชำระ|จำนวนเงิน|โอนสำเร็จ|ยอดเงิน)?\s*([0-9]{1,3}(?:[, ][0-9]{3})*(?:\.\d{2})?)/gi) || [];
+        for (const m of matches) {
+          const numMatch = m.match(/[0-9][0-9, ]*(?:\.\d{2})?/);
+          if (!numMatch) continue;
+          const rawNum = numMatch[0].replace(/[, ]/g, '');
+          const n = Number(rawNum);
+
+          if (Number.isFinite(n) && n > 0 && n < 10000000) {
+            const hasKeyword = /total|ยอดรวม|รวมทั้งสิ้น|amount|ยอดชำระ|จำนวนเงิน|โอนสำเร็จ|ยอดเงิน|thb|บาท/i.test(line);
+            const hasDecimals = /\.\d{2}/.test(numMatch[0]);
+            let score = (hasKeyword ? 12 : 2) + (hasDecimals ? 6 : 0);
+
+            // Filter out numbers that look like years (2024, 2025, 2026, 2567, 2568)
+            if (n >= 2020 && n <= 2570 && !hasDecimals) {
+              score -= 10;
+            }
+
+            candidates.push({ n, score });
+          }
+        }
+      }
+
+      candidates.sort((a, b) => b.score - a.score || b.n - a.n);
+      return candidates[0]?.n ?? null;
+    }
+
+    // Client-side OCR via Tesseract.js (100% Free - 0 Baht - No Google Cloud Billing)
     $('#scan').onclick = async () => {
       if (!file) return;
       $('#scan').disabled = true;
-      showStatus('#status', 'Reading amount with Google Cloud Vision OCR…', 'info');
-
-      const fd = new FormData();
-      fd.append('receipt', file);
+      showStatus('#status', 'Initializing on-device OCR engine…', 'info');
 
       try {
-        const r = await fetch('/api/ocr', { method: 'POST', body: fd });
-        const d = await r.json();
-        if (!r.ok) throw Error(d.error || 'OCR scan failed');
+        const result = await Tesseract.recognize(
+          file,
+          'eng',
+          {
+            logger: m => {
+              if (m.status === 'recognizing text') {
+                const pct = Math.round((m.progress || 0) * 100);
+                showStatus('#status', `Scanning slip on-device (${pct}%)…`, 'info');
+              }
+            }
+          }
+        );
 
-        scanResult = d;
-        $('#amount').value = d.amount ?? '';
-        $('#description').value = d.description || '';
-        if (d.date) $('#date').value = d.date;
+        const extractedText = result?.data?.text || '';
+        const detectedAmount = parseAmountFromText(extractedText);
+
+        if (detectedAmount) {
+          $('#amount').value = detectedAmount;
+          showStatus('#status', `Amount ฿${detectedAmount} detected! Please verify below.`, 'ok');
+        } else {
+          showStatus('#status', 'Scan completed. Please verify or enter the amount below.', 'info');
+        }
 
         $('#preview').classList.add('show');
-        showStatus('#status', 'Amount detected! Please review and confirm below.', 'ok');
         $('#preview').scrollIntoView({ behavior: 'smooth' });
-      } catch (e) {
-        showStatus('#status', e.message, 'error');
+      } catch (err) {
+        console.error('Tesseract OCR error:', err);
+        showStatus('#status', 'OCR scan could not read image clearly. You can enter the amount manually below.', 'error');
+        $('#preview').classList.add('show');
       } finally {
         $('#scan').disabled = false;
       }
     };
 
+    // Manual Entry fallback
+    $('#manual-entry').onclick = () => {
+      $('#preview').classList.add('show');
+      $('#preview').scrollIntoView({ behavior: 'smooth' });
+      $('#amount').focus();
+    };
+
+    // Save to Google Drive and Google Sheets (Uses free Service Account - No Billing Required)
     $('#save').onclick = async () => {
       const amount = Number($('#amount').value);
-      if (!amount || amount < 0) {
-        return showStatus('#saveStatus', 'Please enter a valid amount.', 'error');
+      if (!amount || amount <= 0) {
+        return showStatus('#saveStatus', 'Please enter a valid amount greater than 0.', 'error');
       }
 
       $('#save').disabled = true;
-      showStatus('#saveStatus', 'Saving receipt to Google Drive and appending row to Google Sheets…', 'info');
+      showStatus('#saveStatus', 'Uploading to Google Drive & logging to Google Sheet…', 'info');
 
       const fd = new FormData();
-      fd.append('receipt', file);
+      if (file) fd.append('receipt', file);
       fd.append('amount', amount);
       fd.append('type', type);
       fd.append('category', $('#category').value);
@@ -679,22 +733,19 @@
       }
     };
 
-    $('#rescan').onclick = () => {
-      $('#preview').classList.remove('show');
-      $('#scan').click();
-    };
-
-    function clear() {
+    function clearAll() {
       file = null;
       $('#slip').value = '';
       $('#fileName').classList.remove('active');
       $('#scan').disabled = true;
+      $('#amount').value = '';
+      $('#description').value = '';
       $('#preview').classList.remove('show');
       hideStatus('#status');
       hideStatus('#saveStatus');
     }
 
-    $('#reset').onclick = clear;
+    $('#reset-all').onclick = clearAll;
   </script>
 </body>
 </html>
