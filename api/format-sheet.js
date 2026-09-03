@@ -34,9 +34,22 @@ module.exports = async (req, res) => {
     const existingRuleCount = sheetObj?.conditionalFormats?.length || 0;
 
     // 1. Purge any duplicate lingering summary rows across Columns H to Z
-    await sheets.spreadsheets.values.clear({
+    try {
+      await sheets.spreadsheets.values.batchClear({
+        spreadsheetId,
+        requestBody: { ranges: [`${tabName}!H1:Z100`] }
+      });
+    } catch (clearErr) {
+      console.warn('batchClear warning:', clearErr.message);
+    }
+
+    // Explicitly overwrite H6:I65 with empty strings to guarantee all duplicate rows are obliterated
+    const blankRows = Array.from({ length: 60 }, () => ['', '']);
+    await sheets.spreadsheets.values.update({
       spreadsheetId,
-      range: `${tabName}!H1:Z100`,
+      range: `${tabName}!H6:I65`,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: { values: blankRows }
     });
 
     // 2. Write Header (A1:F1) and single clean Summary (H1:I5)
