@@ -93,11 +93,6 @@ module.exports = async (req, res) => {
       };
     });
 
-    const debugGrid = (await sheets.spreadsheets.values.get({
-      spreadsheetId: process.env.GOOGLE_SHEET_ID,
-      range: `${tabName}!A1:M15`,
-    })).data.values || [];
-
     return res.status(200).json({
       ok: true,
       tabName,
@@ -106,8 +101,7 @@ module.exports = async (req, res) => {
       netBalance,
       categoryTotals,
       totalTransactions: rows.length,
-      recent,
-      debugGrid
+      recent
     });
 
   } catch (err) {
