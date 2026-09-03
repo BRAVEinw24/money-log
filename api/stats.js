@@ -45,10 +45,11 @@ module.exports = async (req, res) => {
       }
     }
 
-    // Step 2: Fetch rows
+    // Step 2: Fetch rows (UNFORMATTED_VALUE returns raw numbers directly)
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: process.env.GOOGLE_SHEET_ID,
       range: `${tabName}!A2:F`,
+      valueRenderOption: 'UNFORMATTED_VALUE'
     });
 
     const rows = response.data.values || [];
@@ -58,9 +59,12 @@ module.exports = async (req, res) => {
 
     // Calculate totals
     for (const row of rows) {
-      const type = (row[2] || '').trim().toLowerCase();
-      const category = (row[3] || 'Other').trim();
-      const amount = parseFloat(String(row[4] || '').replace(/[, ]/g, '')) || 0;
+      const type = (row[2] || '').toString().trim().toLowerCase();
+      const category = (row[3] || 'Other').toString().trim();
+      const rawVal = row[4];
+      const amount = typeof rawVal === 'number'
+        ? rawVal
+        : parseFloat(String(rawVal || '').replace(/[^0-9.-]+/g, '')) || 0;
 
       if (type === 'income') {
         totalIncome += amount;
@@ -73,15 +77,21 @@ module.exports = async (req, res) => {
     const netBalance = totalIncome - totalExpense;
 
     // Get the last 6 recent transactions in reverse chronological order
-    const recent = rows.slice(-6).reverse().map((r, idx) => ({
-      id: idx,
-      timestamp: r[0] || '',
-      date: r[1] || '',
-      type: (r[2] || '').toLowerCase() === 'income' ? 'Income' : 'Expense',
-      category: r[3] || 'Other',
-      amount: parseFloat(String(r[4] || '').replace(/[, ]/g, '')) || 0,
-      description: r[5] || ''
-    }));
+    const recent = rows.slice(-6).reverse().map((r, idx) => {
+      const rawVal = r[4];
+      const amount = typeof rawVal === 'number'
+        ? rawVal
+        : parseFloat(String(rawVal || '').replace(/[^0-9.-]+/g, '')) || 0;
+      return {
+        id: idx,
+        timestamp: r[0] || '',
+        date: r[1] || '',
+        type: (r[2] || '').toString().toLowerCase() === 'income' ? 'Income' : 'Expense',
+        category: r[3] || 'Other',
+        amount,
+        description: r[5] || ''
+      };
+    });
 
     const debugGrid = (await sheets.spreadsheets.values.get({
       spreadsheetId: process.env.GOOGLE_SHEET_ID,

@@ -116,18 +116,26 @@ module.exports = async (req, res) => {
       });
       const existingHeaders = checkRange.data.values?.[0] || [];
       if (existingHeaders.length === 0) {
-        // Automatically insert clean headers AND KPI summary block
-        await sheets.spreadsheets.values.update({
+        // Automatically insert clean headers AND single KPI summary block separately
+        await sheets.spreadsheets.values.batchUpdate({
           spreadsheetId: process.env.GOOGLE_SHEET_ID,
-          range: `${tabName}!A1:I5`,
-          valueInputOption: 'USER_ENTERED',
           requestBody: {
-            values: [
-              ['Timestamp', 'Date', 'Type', 'Category', 'Amount (THB)', 'Description', '', '📊 SUMMARY', '฿ (THB)'],
-              ['', '', '', '', '', '', '', '🟢 Total Income', '=SUMIF(C:C, "Income", E:E)'],
-              ['', '', '', '', '', '', '', '🔴 Total Expense', '=SUMIF(C:C, "Expense", E:E)'],
-              ['', '', '', '', '', '', '', '🔵 Combined Net', '=I2 - I3'],
-              ['', '', '', '', '', '', '', '⭐ Savings Rate', '=IF(I2>0, (I2-I3)/I2, 0)']
+            valueInputOption: 'USER_ENTERED',
+            data: [
+              {
+                range: `${tabName}!A1:F1`,
+                values: [['Timestamp', 'Date', 'Type', 'Category', 'Amount (THB)', 'Description']]
+              },
+              {
+                range: `${tabName}!H1:I5`,
+                values: [
+                  ['📊 SUMMARY', '฿ (THB)'],
+                  ['🟢 Total Income', '=SUMIF(C:C, "Income", E:E)'],
+                  ['🔴 Total Expense', '=SUMIF(C:C, "Expense", E:E)'],
+                  ['🔵 Combined Net', '=I2 - I3'],
+                  ['⭐ Savings Rate', '=IF(I2>0, (I2-I3)/I2, 0)']
+                ]
+              }
             ]
           }
         });
@@ -136,7 +144,7 @@ module.exports = async (req, res) => {
       console.warn('Header auto-check skipped:', headerErr.message);
     }
 
-    // Step 3: Append Transaction Row (Clean & Direct)
+    // Step 3: Append Transaction Row (Clean & Direct - OVERWRITE so Columns H & I are never pushed down)
     const timestamp = new Date().toLocaleString('en-US', { timeZone: 'Asia/Bangkok' });
     const formattedAmount = Number(amount);
     const formattedType = type.toLowerCase() === 'income' ? 'Income' : 'Expense';
@@ -154,7 +162,7 @@ module.exports = async (req, res) => {
       spreadsheetId: process.env.GOOGLE_SHEET_ID,
       range: `${tabName}!A:F`,
       valueInputOption: 'USER_ENTERED',
-      insertDataOption: 'INSERT_ROWS',
+      insertDataOption: 'OVERWRITE',
       requestBody: { values },
     });
 

@@ -33,7 +33,13 @@ module.exports = async (req, res) => {
     const tabName = sheetObj?.properties?.title || 'Sheet1';
     const existingRuleCount = sheetObj?.conditionalFormats?.length || 0;
 
-    // 1. Write Header (A1:F1) and Summary (H1:I5) separately so data rows are never overwritten
+    // 1. Purge any duplicate lingering summary rows across Columns H to Z
+    await sheets.spreadsheets.values.clear({
+      spreadsheetId,
+      range: `${tabName}!H1:Z100`,
+    });
+
+    // 2. Write Header (A1:F1) and single clean Summary (H1:I5)
     await sheets.spreadsheets.values.batchUpdate({
       spreadsheetId,
       requestBody: {
@@ -147,6 +153,20 @@ module.exports = async (req, res) => {
           userEnteredFormat: {
             backgroundColor: { red: 0.97, green: 0.98, blue: 0.99 },
             textFormat: { bold: true }
+          }
+        },
+        fields: 'userEnteredFormat(backgroundColor,textFormat.bold)'
+      }
+    });
+
+    // Clear formatting on H6:I100 to remove old backgrounds from duplicate summary rows
+    requests.push({
+      repeatCell: {
+        range: { sheetId, startRowIndex: 5, endRowIndex: 100, startColumnIndex: 7, endColumnIndex: 9 },
+        cell: {
+          userEnteredFormat: {
+            backgroundColor: { red: 1.0, green: 1.0, blue: 1.0 },
+            textFormat: { bold: false }
           }
         },
         fields: 'userEnteredFormat(backgroundColor,textFormat.bold)'
