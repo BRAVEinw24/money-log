@@ -1160,23 +1160,25 @@
 
       let category = 'Other';
       const combined = (recipient + ' ' + memo + ' ' + text).toLowerCase();
-      if (/อาหาร|ข้าว|ก๋วยเตี๋ยว|ชาบู|กาแฟ|cafe|coffee|food|restaurant|ร้านอาหาร|7-eleven|kfc|mcdonald|grabfood|lineman|ขนม|เบเกอรี่|หมูกระทะ|starbucks|amazon|ส้มตำ/i.test(combined)) {
+      if (/การไฟฟ้า|การประปา|ais|true|dtac|ค่าเน็ต|ค่าน้ำ|ค่าไฟ|pea|mea|บิล|bill|ประกัน|aia|fwd|counter\s*service/i.test(combined)) {
+        category = 'Bills';
+      } else if (/เงินเดือน|salary|payroll|wages|โบนัส|bonus/i.test(combined)) {
+        category = 'Salary';
+      } else if (/โรงพยาบาล|คลินิก|ยา|pharmacy|hospital|หมอ|คลีนิก|dental|ทันตกรรม/i.test(combined)) {
+        category = 'Health';
+      } else if (/อาหาร|ข้าว|ก๋วยเตี๋ยว|ชาบู|กาแฟ|cafe|coffee|food|restaurant|ร้านอาหาร|7-eleven|kfc|mcdonald|grabfood|lineman|ขนม|เบเกอรี่|หมูกระทะ|starbucks|amazon|ส้มตำ/i.test(combined)) {
         category = 'Food';
       } else if (/grab|bolt|ptt|shell|caltex|bangchak|น้ำมัน|bts|mrt|ทางด่วน|taxi|แท็กซี่|ปั๊ม/i.test(combined)) {
         category = 'Transport';
       } else if (/shopee|lazada|tiktok|เสื้อ|กระเป๋า|รองเท้า|shopping|uniqlo|zara|central|mall/i.test(combined)) {
         category = 'Shopping';
-      } else if (/การไฟฟ้า|การประปา|ais|true|dtac|ค่าเน็ต|ค่าน้ำ|ค่าไฟ|pea|mea|บิล|ประกัน|aia|fwd/i.test(combined)) {
-        category = 'Bills';
-      } else if (/โรงพยาบาล|คลินิก|ยา|pharmacy|hospital|หมอ|คลีนิก/i.test(combined)) {
-        category = 'Health';
       } else if (/ikea|homepro|dohome|ไทวัสดุ|ของใช้/i.test(combined)) {
         category = 'Home';
-      } else if (/หนังสือ|se-ed|naiin|book|ค่าเทอม|คอร์ส|course|udemy/i.test(combined)) {
+      } else if (/หนังสือ|se-ed|naiin|book|ค่าเทอม|คอร์ส|course|udemy|tuition/i.test(combined)) {
         category = 'Education';
-      } else if (/netflix|spotify|youtube|cinema|steam|game/i.test(combined)) {
+      } else if (/netflix|spotify|youtube|cinema|steam|game|major|sf\s*cinema/i.test(combined)) {
         category = 'Entertainment';
-      } else if (/stock|crypto|binance|bitkub|dime|innovestx|invest/i.test(combined)) {
+      } else if (/stock|crypto|binance|bitkub|dime|innovestx|invest|หุ้น|กองทุน/i.test(combined)) {
         category = 'Investments';
       } else if (/เงินเดือน|salary|โบนัส|bonus|รายได้/i.test(combined)) {
         category = 'Salary';
