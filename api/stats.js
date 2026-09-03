@@ -1,4 +1,4 @@
-﻿const { google } = require('googleapis');
+const { google } = require('googleapis');
 
 module.exports = async (req, res) => {
   if (!process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON || !process.env.GOOGLE_SHEET_ID) {
@@ -83,6 +83,11 @@ module.exports = async (req, res) => {
       description: r[5] || ''
     }));
 
+    const debugGrid = (await sheets.spreadsheets.values.get({
+      spreadsheetId: process.env.GOOGLE_SHEET_ID,
+      range: `${tabName}!A1:M15`,
+    })).data.values || [];
+
     return res.status(200).json({
       ok: true,
       tabName,
@@ -91,7 +96,8 @@ module.exports = async (req, res) => {
       netBalance,
       categoryTotals,
       totalTransactions: rows.length,
-      recent
+      recent,
+      debugGrid
     });
 
   } catch (err) {
