@@ -2,3 +2,7 @@
 *.log
 moneylog-live.html
 ocr-result.json
+live*.html
+ocr-check*.txt
+ocr-test*.txt
+

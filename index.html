@@ -789,6 +789,9 @@
         <i data-lucide="check-circle-2" style="width: 16px; height: 16px; color: var(--ios-green);"></i> Confirm Record
       </div>
 
+      <!-- Auto-Detected Slip Telemetry Badges -->
+      <div id="detectionBadges" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px;"></div>
+
       <div class="amount-display-container">
         <div class="amount-sublabel">Amount (Editable)</div>
         <div class="amount-input-wrapper">
@@ -1010,6 +1013,197 @@
       el.innerHTML = '';
     }
 
+    // Image Pre-processing on Canvas: Resizes large phone photos and boosts contrast for fast, accurate OCR
+    function preprocessSlipImage(imageFile) {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            let w = img.width;
+            let h = img.height;
+            const maxDim = 1400;
+            if (w > maxDim || h > maxDim) {
+              if (w > h) {
+                h = Math.round((h * maxDim) / w);
+                w = maxDim;
+              } else {
+                w = Math.round((w * maxDim) / h);
+                h = maxDim;
+              }
+            }
+            canvas.width = w;
+            canvas.height = h;
+            ctx.drawImage(img, 0, 0, w, h);
+
+            try {
+              const imgData = ctx.getImageData(0, 0, w, h);
+              const d = imgData.data;
+              for (let i = 0; i < d.length; i += 4) {
+                // Grayscale luminance
+                const gray = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+                // Contrast stretch (1.2)
+                const contrast = 1.2;
+                const factor = (259 * (contrast * 255 + 255)) / (255 * (259 - contrast * 255));
+                const adjusted = factor * (gray - 128) + 128;
+                const val = adjusted < 0 ? 0 : adjusted > 255 ? 255 : adjusted;
+                d[i] = val;
+                d[i + 1] = val;
+                d[i + 2] = val;
+              }
+              ctx.putImageData(imgData, 0, 0);
+            } catch (err) {
+              console.warn('Canvas filter skipped:', err);
+            }
+
+            canvas.toBlob((blob) => resolve(blob || imageFile), 'image/jpeg', 0.90);
+          };
+          img.onerror = () => resolve(imageFile);
+          img.src = e.target.result;
+        };
+        reader.onerror = () => resolve(imageFile);
+        reader.readAsDataURL(imageFile);
+      });
+    }
+
+    const thaiMonths = {
+      'ม.ค.': '01', 'ก.พ.': '02', 'มี.ค.': '03', 'เม.ย.': '04', 'พ.ค.': '05', 'มิ.ย.': '06',
+      'ก.ค.': '07', 'ส.ค.': '08', 'ก.ย.': '09', 'ต.ค.': '10', 'พ.ย.': '11', 'ธ.ค.': '12',
+      'มกราคม': '01', 'กุมภาพันธ์': '02', 'มีนาคม': '03', 'เมษายน': '04', 'พฤษภาคม': '05', 'มิถุนายน': '06',
+      'กรกฎาคม': '07', 'สิงหาคม': '08', 'กันยายน': '09', 'ตุลาคม': '10', 'พฤศจิกายน': '11', 'ธันวาคม': '12'
+    };
+
+    const engMonths = {
+      'jan': '01', 'feb': '02', 'mar': '03', 'apr': '04', 'may': '05', 'jun': '06',
+      'jul': '07', 'aug': '08', 'sep': '09', 'oct': '10', 'nov': '11', 'dec': '12'
+    };
+
+    function parseSlipDate(text) {
+      // 1. Thai text date: e.g. 03 ก.ย. 2569 or 3 ก.ย. 69 or 3 กันยายน 2569
+      const mThai = text.match(/(?:วันที่|date)?\s*(\d{1,2})\s+([ก-๙.]+)\s+(\d{2,4})/i);
+      if (mThai) {
+        const day = mThai[1].padStart(2, '0');
+        const month = thaiMonths[mThai[2]] || '01';
+        let year = parseInt(mThai[3], 10);
+        if (year < 100) year += 2500;
+        if (year > 2400) year -= 543;
+        if (year >= 2020 && year <= 2035) {
+          return `${year}-${month}-${day}`;
+        }
+      }
+
+      // 2. English text date: e.g. 03 Sep 2026 or 3 August 2026
+      const mEng = text.match(/(?:date)?\s*(\d{1,2})\s+([A-Za-z]{3,9})\s+(\d{2,4})/i);
+      if (mEng) {
+        const day = mEng[1].padStart(2, '0');
+        const monthKey = mEng[2].slice(0, 3).toLowerCase();
+        const month = engMonths[monthKey];
+        if (month) {
+          let year = parseInt(mEng[3], 10);
+          if (year < 100) year += 2000;
+          if (year > 2400) year -= 543;
+          if (year >= 2020 && year <= 2035) {
+            return `${year}-${month}-${day}`;
+          }
+        }
+      }
+
+      // 3. Numeric slash or dash format: DD/MM/YYYY or DD-MM-YYYY
+      const mSlash = text.match(/(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})/);
+      if (mSlash) {
+        const p1 = parseInt(mSlash[1], 10);
+        const p2 = parseInt(mSlash[2], 10);
+        let year = parseInt(mSlash[3], 10);
+        if (year < 100) year += 2000;
+        if (year > 2400) year -= 543;
+        if (year >= 2020 && year <= 2035 && p1 <= 31 && p2 <= 12) {
+          const day = String(p1).padStart(2, '0');
+          const month = String(p2).padStart(2, '0');
+          return `${year}-${month}-${day}`;
+        }
+      }
+      return null;
+    }
+
+    function extractSlipDetails(text) {
+      const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+      let recipient = '';
+      let refId = '';
+      let memo = '';
+
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+
+        // Reference / Transaction ID
+        const refMatch = line.match(/(?:เลขที่รายการ|รหัสอ้างอิง|เลขที่อ้างอิง|ref(?:\s*no\.?)?|transaction\s*id)[\s:]*([A-Za-z0-9]+)/i);
+        if (refMatch && !refId) {
+          refId = refMatch[1];
+        }
+
+        // Recipient / Payee (ไปยัง / To)
+        if (/(?:ไปยัง|ไปที่|ผู้รับเงิน|ผู้รับ|to|transfer\s*to)/i.test(line)) {
+          let clean = line.replace(/^(?:ไปยัง|ไปที่|ผู้รับเงิน|ผู้รับ|to|transfer\s*to)[\s:]*/i, '').trim();
+          if (clean && clean.length > 2 && !/^(?:บัญชี|promptpay|พร้อมเพย์|ธนาคาร)/i.test(clean)) {
+            recipient = clean;
+          } else if (i < lines.length - 1) {
+            const next = lines[i + 1].trim();
+            if (next && next.length > 2 && !/^(?:xxx|\d{3})/i.test(next)) {
+              recipient = next;
+            }
+          }
+        }
+
+        // Memo / Note
+        const memoMatch = line.match(/(?:บันทึก|memo|note)[\s:]*(.+)/i);
+        if (memoMatch && !memo) {
+          memo = memoMatch[1].trim();
+        }
+      }
+
+      recipient = recipient.replace(/^(?:นาย|นางสาว|นาง|น\.ส\.|mr\.|mrs\.|ms\.)/i, '').trim();
+
+      let category = 'Other';
+      const combined = (recipient + ' ' + memo + ' ' + text).toLowerCase();
+      if (/อาหาร|ข้าว|ก๋วยเตี๋ยว|ชาบู|กาแฟ|cafe|coffee|food|restaurant|ร้านอาหาร|7-eleven|kfc|mcdonald|grabfood|lineman|ขนม|เบเกอรี่|หมูกระทะ|starbucks|amazon|ส้มตำ/i.test(combined)) {
+        category = 'Food';
+      } else if (/grab|bolt|ptt|shell|caltex|bangchak|น้ำมัน|bts|mrt|ทางด่วน|taxi|แท็กซี่|ปั๊ม/i.test(combined)) {
+        category = 'Transport';
+      } else if (/shopee|lazada|tiktok|เสื้อ|กระเป๋า|รองเท้า|shopping|uniqlo|zara|central|mall/i.test(combined)) {
+        category = 'Shopping';
+      } else if (/การไฟฟ้า|การประปา|ais|true|dtac|ค่าเน็ต|ค่าน้ำ|ค่าไฟ|pea|mea|บิล|ประกัน|aia|fwd/i.test(combined)) {
+        category = 'Bills';
+      } else if (/โรงพยาบาล|คลินิก|ยา|pharmacy|hospital|หมอ|คลีนิก/i.test(combined)) {
+        category = 'Health';
+      } else if (/ikea|homepro|dohome|ไทวัสดุ|ของใช้/i.test(combined)) {
+        category = 'Home';
+      } else if (/หนังสือ|se-ed|naiin|book|ค่าเทอม|คอร์ส|course|udemy/i.test(combined)) {
+        category = 'Education';
+      } else if (/netflix|spotify|youtube|cinema|steam|game/i.test(combined)) {
+        category = 'Entertainment';
+      } else if (/stock|crypto|binance|bitkub|dime|innovestx|invest/i.test(combined)) {
+        category = 'Investments';
+      } else if (/เงินเดือน|salary|โบนัส|bonus|รายได้/i.test(combined)) {
+        category = 'Salary';
+      }
+
+      let type = 'Expense';
+      if (/รับเงินโอนสำเร็จ|เงินเข้า|โอนเงินเข้า|received|deposit|income/i.test(text)) {
+        type = 'Income';
+      }
+
+      const descParts = [];
+      if (recipient) descParts.push(recipient);
+      if (memo) descParts.push(memo);
+      if (refId) descParts.push(`Ref: ${refId}`);
+      const description = descParts.join(' • ');
+
+      const date = parseSlipDate(text);
+
+      return { recipient, refId, memo, category, type, description, date };
+    }
+
     // High-Precision Thai/English Slip Amount Parser
     function parseAmountCandidates(text) {
       const lines = text.split(/\r?\n/).map(x => x.trim()).filter(Boolean);
@@ -1080,21 +1274,24 @@
       return sorted;
     }
 
-    // Client-side OCR via Tesseract.js
+    // Client-side OCR via Tesseract.js with Thai + English support & image pre-processing
     $('#scan').onclick = async () => {
       if (!file) return;
       $('#scan').disabled = true;
-      showStatus('#status', 'Scanning slip on-device… (0%)', 'info');
+      showStatus('#status', 'Optimizing slip image for high-accuracy reading…', 'info');
 
       try {
+        const processedBlob = await preprocessSlipImage(file);
+
+        showStatus('#status', 'Loading OCR language models (Thai & English)…', 'info');
         const result = await Tesseract.recognize(
-          file,
-          'eng',
+          processedBlob,
+          'tha+eng',
           {
             logger: m => {
               if (m.status === 'recognizing text') {
                 const pct = Math.round((m.progress || 0) * 100);
-                showStatus('#status', `Scanning slip on-device (${pct}%)…`, 'info');
+                showStatus('#status', `Scanning slip details (${pct}%)…`, 'info');
               }
             }
           }
@@ -1102,15 +1299,46 @@
 
         const extractedText = result?.data?.text || '';
         const candidates = parseAmountCandidates(extractedText);
+        const details = extractSlipDetails(extractedText);
 
         const candidatesSection = $('#candidatesSection');
         const candidatesList = $('#candidatesList');
         candidatesList.innerHTML = '';
 
+        // Auto-populate extracted slip information
+        if (details.date) {
+          $('#date').value = details.date;
+        }
+        if (details.description) {
+          $('#description').value = details.description;
+        }
+        if (details.category && details.category !== 'Other') {
+          $('#category').value = details.category;
+        }
+        if (details.type) {
+          setType(details.type.toLowerCase());
+        }
+
+        // Render detected telemetry badges
+        const badgesContainer = $('#detectionBadges');
+        if (badgesContainer) {
+          badgesContainer.innerHTML = '';
+          if (details.date) {
+            badgesContainer.innerHTML += `<span class="candidate-pill active" style="font-size:12px; cursor:default;"><i data-lucide="calendar" style="width:12px; height:12px;"></i> ${details.date}</span>`;
+          }
+          if (details.recipient) {
+            badgesContainer.innerHTML += `<span class="candidate-pill active" style="font-size:12px; cursor:default;"><i data-lucide="store" style="width:12px; height:12px;"></i> ${details.recipient}</span>`;
+          }
+          if (details.category && details.category !== 'Other') {
+            badgesContainer.innerHTML += `<span class="candidate-pill active" style="font-size:12px; cursor:default;"><i data-lucide="tag" style="width:12px; height:12px;"></i> ${details.category}</span>`;
+          }
+          lucide.createIcons();
+        }
+
         if (candidates.length > 0) {
           const topChoice = candidates[0].n;
           $('#amount').value = topChoice;
-          showStatus('#status', `Detected ฿${topChoice}! Verify or tap an alternative below.`, 'ok');
+          showStatus('#status', `Detected ฿${topChoice.toLocaleString('en-US', { minimumFractionDigits: 2 })}! Review details below.`, 'ok');
 
           if (candidates.length > 1) {
             candidatesSection.style.display = 'block';
@@ -1131,14 +1359,14 @@
           }
         } else {
           candidatesSection.style.display = 'none';
-          showStatus('#status', 'Could not automatically isolate the total. Please type the amount below.', 'info');
+          showStatus('#status', 'Slip details detected! Please enter or verify the total amount below.', 'info');
         }
 
         $('#preview').classList.add('show');
         $('#preview').scrollIntoView({ behavior: 'smooth' });
       } catch (err) {
         console.error('OCR error:', err);
-        showStatus('#status', 'OCR could not process image. Please enter amount manually below.', 'error');
+        showStatus('#status', 'OCR could not process image automatically. Please enter amount manually below.', 'error');
         $('#preview').classList.add('show');
       } finally {
         $('#scan').disabled = false;
@@ -1152,29 +1380,49 @@
       $('#amount').focus();
     };
 
-    // Save directly to Google Sheets
+    // Save directly to Google Sheets via robust JSON API
     $('#save').onclick = async () => {
-      const amount = Number($('#amount').value);
-      if (!amount || amount <= 0) {
+      const rawAmount = $('#amount').value;
+      const amount = parseFloat(String(rawAmount).replace(/[, ]/g, ''));
+      if (!amount || isNaN(amount) || amount <= 0) {
         return showStatus('#saveStatus', 'Please enter a valid amount greater than 0.', 'error');
       }
 
       $('#save').disabled = true;
       showStatus('#saveStatus', 'Appending row to your Google Sheet…', 'info');
 
-      const fd = new FormData();
-      fd.append('amount', amount);
-      fd.append('type', type);
-      fd.append('category', $('#category').value);
-      fd.append('description', $('#description').value);
-      fd.append('date', $('#date').value);
+      const payload = {
+        amount,
+        type,
+        category: $('#category').value,
+        description: $('#description').value,
+        date: $('#date').value
+      };
 
       try {
-        const r = await fetch('/api/record', { method: 'POST', body: fd });
+        const r = await fetch('/api/record', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
         const d = await r.json();
         if (!r.ok) throw Error(d.error || 'Failed to save transaction');
 
-        showStatus('#saveStatus', `Saved to Google Sheet row ${d.rowNumber || ''} (${type === 'income' ? '💰 Income' : '🔥 Expense'})!`, 'ok');
+        showStatus('#saveStatus', `
+          <div style="display:flex; flex-direction:column; gap:6px; width:100%;">
+            <div><strong>✨ Recorded to Google Sheet row ${d.rowNumber || ''}!</strong></div>
+            <div style="font-size:12px; opacity:0.85;">฿${amount.toLocaleString('en-US', { minimumFractionDigits: 2 })} • ${payload.category} • ${payload.date} (${type === 'income' ? 'Income' : 'Expense'})</div>
+            <button type="button" id="btn-log-another" style="background:var(--card-tertiary); border:1px solid var(--border); color:var(--text-primary); border-radius:10px; padding:8px 12px; font-weight:600; font-size:12px; cursor:pointer; margin-top:4px;">
+              📸 Log Another Slip
+            </button>
+          </div>
+        `, 'ok');
+
+        const btnAnother = $('#btn-log-another');
+        if (btnAnother) {
+          btnAnother.onclick = clearAll;
+        }
+
         fetchLiveStats();
       } catch (e) {
         showStatus('#saveStatus', e.message, 'error');
@@ -1190,6 +1438,8 @@
       $('#scan').disabled = true;
       $('#amount').value = '';
       $('#description').value = '';
+      const badgesContainer = $('#detectionBadges');
+      if (badgesContainer) badgesContainer.innerHTML = '';
       $('#candidatesSection').style.display = 'none';
       $('#candidatesList').innerHTML = '';
       $('#preview').classList.remove('show');

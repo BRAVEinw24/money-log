@@ -1,22 +1,50 @@
-const { formidable } = require('formidable');
 const { google } = require('googleapis');
+
+async function parseRequestBody(req) {
+  const contentType = req.headers['content-type'] || '';
+  if (contentType.includes('application/json')) {
+    const chunks = [];
+    for await (const chunk of req) chunks.push(chunk);
+    const raw = Buffer.concat(chunks).toString('utf8');
+    return raw ? JSON.parse(raw) : {};
+  }
+  if (contentType.includes('multipart/form-data') || contentType.includes('urlencoded')) {
+    const { formidable } = require('formidable');
+    const form = formidable({ multiples: false, maxFileSize: 10 * 1024 * 1024 });
+    const [fields] = await form.parse(req);
+    const res = {};
+    for (const [k, v] of Object.entries(fields)) {
+      res[k] = Array.isArray(v) ? v[0] : v;
+    }
+    return res;
+  }
+  try {
+    const chunks = [];
+    for await (const chunk of req) chunks.push(chunk);
+    const raw = Buffer.concat(chunks).toString('utf8');
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
-  const form = formidable({ multiples: false, maxFileSize: 10 * 1024 * 1024 });
 
   try {
-    const [fields] = await form.parse(req);
-    const getField = (name) => Array.isArray(fields[name]) ? fields[name][0] : fields[name];
+    const body = await parseRequestBody(req);
+    let amount = body.amount;
+    const type = body.type;
+    const category = body.category;
+    const date = body.date;
+    const description = body.description || '';
 
-    const amount = getField('amount');
-    const type = getField('type');
-    const category = getField('category');
-    const date = getField('date');
-    const description = getField('description') || '';
+    if (amount !== undefined && amount !== null) {
+      amount = Number(String(amount).replace(/[, ]/g, ''));
+    }
 
-    if (!amount || !type || !category || !date) {
-      return res.status(400).json({ error: 'amount, type, category, and date are required' });
+    if (!amount || isNaN(amount) || amount <= 0 || !type || !category || !date) {
+      return res.status(400).json({ error: 'Valid amount (> 0), type, category, and date are required' });
     }
 
     if (!process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON) {
