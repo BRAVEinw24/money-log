@@ -1,4 +1,4 @@
-﻿const { google } = require('googleapis');
+const { google } = require('googleapis');
 
 module.exports = async (req, res) => {
   if (!process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON || !process.env.GOOGLE_SHEET_ID) {
@@ -22,11 +22,16 @@ module.exports = async (req, res) => {
     const sheets = google.sheets({ version: 'v4', auth });
     const spreadsheetId = process.env.GOOGLE_SHEET_ID;
 
-    // Get metadata to get target sheetId and title
-    const meta = await sheets.spreadsheets.get({ spreadsheetId });
+    // Get metadata to get target sheetId, title, and existing conditional formatting rules
+    const meta = await sheets.spreadsheets.get({
+      spreadsheetId,
+      ranges: [process.env.GOOGLE_SHEET_TAB || 'Transactions'],
+      fields: 'sheets(properties,conditionalFormats)'
+    });
     const sheetObj = meta.data.sheets?.[0];
     const sheetId = sheetObj?.properties?.sheetId || 0;
     const tabName = sheetObj?.properties?.title || 'Sheet1';
+    const existingRuleCount = sheetObj?.conditionalFormats?.length || 0;
 
     // 1. Write Header and Live Formula KPI Summary Block
     await sheets.spreadsheets.values.update({
@@ -44,22 +49,32 @@ module.exports = async (req, res) => {
       }
     });
 
-    // 2. Build Category Colors & Conditional Formatting Rules
+    // 2. Build Category Colors & Conditional Formatting Rules (Yellow for Food, Green for Transport)
     const categories = [
-      { name: 'Food', bg: { red: 1.0, green: 0.88, blue: 0.70 }, fg: { red: 0.8, green: 0.35, blue: 0.0 } }, // Orange
-      { name: 'Transport', bg: { red: 0.78, green: 0.88, blue: 1.0 }, fg: { red: 0.0, green: 0.35, blue: 0.85 } }, // Blue
-      { name: 'Shopping', bg: { red: 1.0, green: 0.78, blue: 0.86 }, fg: { red: 0.85, green: 0.1, blue: 0.3 } }, // Pink
-      { name: 'Bills', bg: { red: 1.0, green: 0.96, blue: 0.72 }, fg: { red: 0.7, green: 0.5, blue: 0.0 } }, // Yellow
-      { name: 'Health', bg: { red: 0.78, green: 0.95, blue: 0.82 }, fg: { red: 0.1, green: 0.6, blue: 0.2 } }, // Green
-      { name: 'Home', bg: { red: 0.93, green: 0.87, blue: 0.80 }, fg: { red: 0.5, green: 0.35, blue: 0.2 } }, // Tan
-      { name: 'Education', bg: { red: 0.91, green: 0.82, blue: 0.98 }, fg: { red: 0.5, green: 0.1, blue: 0.7 } }, // Purple
-      { name: 'Entertainment', bg: { red: 0.85, green: 0.85, blue: 0.98 }, fg: { red: 0.3, green: 0.2, blue: 0.7 } }, // Indigo
-      { name: 'Investments', bg: { red: 0.80, green: 0.95, blue: 1.0 }, fg: { red: 0.0, green: 0.5, blue: 0.7 } }, // Cyan
-      { name: 'Salary', bg: { red: 0.78, green: 0.98, blue: 0.85 }, fg: { red: 0.0, green: 0.6, blue: 0.2 } }, // Mint
-      { name: 'Other', bg: { red: 0.90, green: 0.90, blue: 0.92 }, fg: { red: 0.35, green: 0.35, blue: 0.35 } } // Gray
+      { name: 'Food', bg: { red: 1.0, green: 0.95, blue: 0.60 }, fg: { red: 0.60, green: 0.45, blue: 0.0 } }, // 🟡 Yellow (as requested)
+      { name: 'Transport', bg: { red: 0.78, green: 0.94, blue: 0.81 }, fg: { red: 0.08, green: 0.50, blue: 0.20 } }, // 🟢 Green (as requested)
+      { name: 'Shopping', bg: { red: 1.0, green: 0.82, blue: 0.89 }, fg: { red: 0.80, green: 0.12, blue: 0.35 } }, // 🌸 Pink / Rose
+      { name: 'Bills', bg: { red: 1.0, green: 0.86, blue: 0.70 }, fg: { red: 0.82, green: 0.35, blue: 0.0 } }, // ⚡ Orange / Amber
+      { name: 'Health', bg: { red: 1.0, green: 0.84, blue: 0.84 }, fg: { red: 0.80, green: 0.15, blue: 0.15 } }, // 🔴 Soft Coral / Red
+      { name: 'Home', bg: { red: 0.92, green: 0.86, blue: 0.80 }, fg: { red: 0.50, green: 0.32, blue: 0.18 } }, // 🏠 Warm Tan / Sand
+      { name: 'Education', bg: { red: 0.91, green: 0.82, blue: 0.98 }, fg: { red: 0.50, green: 0.12, blue: 0.70 } }, // 📚 Purple
+      { name: 'Entertainment', bg: { red: 0.85, green: 0.86, blue: 0.98 }, fg: { red: 0.22, green: 0.20, blue: 0.70 } }, // 🎬 Indigo
+      { name: 'Investments', bg: { red: 0.80, green: 0.95, blue: 0.98 }, fg: { red: 0.0, green: 0.45, blue: 0.60 } }, // 📈 Cyan
+      { name: 'Salary', bg: { red: 0.82, green: 0.98, blue: 0.88 }, fg: { red: 0.05, green: 0.55, blue: 0.25 } }, // 💼 Mint
+      { name: 'Other', bg: { red: 0.91, green: 0.91, blue: 0.93 }, fg: { red: 0.35, green: 0.35, blue: 0.38 } } // ✨ Charcoal Gray
     ];
 
     const requests = [];
+
+    // Clear any previous conditional format rules to eliminate duplicates
+    for (let i = existingRuleCount - 1; i >= 0; i--) {
+      requests.push({
+        deleteConditionalFormatRule: {
+          sheetId,
+          index: i
+        }
+      });
+    }
 
     // Freeze Row 1
     requests.push({
