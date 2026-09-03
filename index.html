@@ -12,21 +12,21 @@
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <style>
     :root {
-      --bg: #000000;
-      --card-bg: #1C1C1E;
-      --card-secondary: #2C2C2E;
-      --card-tertiary: #3A3A3C;
-      --border: rgba(255, 255, 255, 0.09);
-      --border-focus: #0A84FF;
-      --text-primary: #FFFFFF;
-      --text-secondary: #8E8E93;
-      --text-tertiary: #636366;
-      --ios-blue: #0A84FF;
-      --ios-red: #FF453A;
-      --ios-green: #30D158;
-      --ios-purple: #BF5AF2;
-      --ios-orange: #FF9F0A;
-      --font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Inter", sans-serif;
+      --bg: #F8F8F6;
+      --grid: rgba(19, 23, 34, 0.035);
+      --card-bg: #FFFFFF;
+      --card-secondary: #F0F3FA;
+      --card-tertiary: #E0E3EB;
+      --border: #E0E3EB;
+      --border-focus: #2962FF;
+      --text-primary: #1A1917;
+      --text-secondary: #5D606B;
+      --text-tertiary: #787B86;
+      --tv-blue: #2962FF;
+      --tv-green: #089981;
+      --tv-red: #F23645;
+      --tv-orange: #FF9800;
+      --font-family: -apple-system, BlinkMacSystemFont, "Trebuchet MS", "Inter", "Segoe UI", sans-serif;
     }
 
     * {
@@ -34,10 +34,15 @@
       margin: 0;
       padding: 0;
       -webkit-tap-highlight-color: transparent;
+      transition: none !important;
     }
 
     body {
       background-color: var(--bg);
+      background-image: 
+        linear-gradient(to right, var(--grid) 1px, transparent 1px),
+        linear-gradient(to bottom, var(--grid) 1px, transparent 1px);
+      background-size: 24px 24px;
       color: var(--text-primary);
       font-family: var(--font-family);
       min-height: 100vh;
@@ -56,7 +61,7 @@
       padding-top: 16px;
     }
 
-    /* iOS Navigation Bar */
+    /* TradingView Navigation Bar */
     .nav-bar {
       display: flex;
       justify-content: space-between;
@@ -75,57 +80,49 @@
       width: 44px;
       height: 44px;
       border-radius: 12px;
-      background: linear-gradient(135deg, #1C1C1E 0%, #2C2C2E 100%);
+      background: #FFFFFF;
       border: 1px solid var(--border);
       display: flex;
       align-items: center;
       justify-content: center;
-      color: var(--ios-green);
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+      color: var(--tv-blue);
+      box-shadow: 0 2px 8px rgba(19, 23, 34, 0.06);
     }
 
     .brand-text h1 {
       font-size: 20px;
       font-weight: 700;
       color: var(--text-primary);
-      letter-spacing: -0.03em;
+      letter-spacing: -0.02em;
     }
 
     .brand-text p {
       font-size: 13px;
       color: var(--text-secondary);
-      font-weight: 400;
+      font-weight: 500;
     }
 
-    .sync-status-badge {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 12px;
-      font-weight: 600;
-      padding: 6px 12px;
-      border-radius: 20px;
-      background: var(--card-bg);
-      border: 1px solid var(--border);
-      color: var(--ios-green);
+    .btn-refresh {
+      background: #FFFFFF !important;
+      border: 1px solid var(--border) !important;
+      color: var(--text-primary) !important;
+      box-shadow: 0 1px 4px rgba(19, 23, 34, 0.05);
     }
 
-    .status-dot {
-      width: 7px;
-      height: 7px;
-      border-radius: 50%;
-      background: var(--ios-green);
-      box-shadow: 0 0 8px var(--ios-green);
+    .btn-refresh:hover {
+      background: var(--card-secondary) !important;
+      border-color: var(--tv-blue) !important;
+      color: var(--tv-blue) !important;
     }
 
-    /* Financial Overview & Net Balance Card */
+    /* TradingView Financial Overview Card */
     .overview-card {
-      background: linear-gradient(180deg, #1C1C1E 0%, #151517 100%);
+      background: #FFFFFF;
       border: 1px solid var(--border);
-      border-radius: 22px;
+      border-radius: 18px;
       padding: 22px 20px;
       margin-bottom: 20px;
-      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6);
+      box-shadow: 0 2px 12px rgba(19, 23, 34, 0.05);
     }
 
     .net-balance-group {
@@ -136,11 +133,11 @@
     }
 
     .net-sublabel {
-      font-size: 12px;
+      font-size: 11px;
       text-transform: uppercase;
-      letter-spacing: 0.06em;
+      letter-spacing: 0.08em;
       color: var(--text-secondary);
-      font-weight: 600;
+      font-weight: 700;
       margin-bottom: 4px;
     }
 
@@ -148,10 +145,11 @@
       font-size: 38px;
       font-weight: 800;
       letter-spacing: -0.02em;
+      color: var(--text-primary);
     }
 
-    .net-amount.positive { color: var(--ios-green); }
-    .net-amount.negative { color: var(--ios-red); }
+    .net-amount.positive { color: var(--tv-green); }
+    .net-amount.negative { color: var(--tv-red); }
 
     .totals-row {
       display: grid;
@@ -160,7 +158,7 @@
     }
 
     .total-box {
-      background: rgba(44, 44, 46, 0.5);
+      background: #F8F9FD;
       border-radius: 14px;
       padding: 12px 14px;
       border: 1px solid var(--border);
@@ -168,7 +166,7 @@
 
     .total-title {
       font-size: 11px;
-      font-weight: 600;
+      font-weight: 700;
       color: var(--text-secondary);
       text-transform: uppercase;
       letter-spacing: 0.05em;
@@ -183,10 +181,10 @@
       font-weight: 800;
     }
 
-    .total-val.green { color: var(--ios-green); }
-    .total-val.red { color: var(--ios-red); }
+    .total-val.green { color: var(--tv-green); }
+    .total-val.red { color: var(--tv-red); }
 
-    /* Category Storage-Style Bar */
+    /* Category Storage-Style Breakdown Bar */
     .category-bar-section {
       margin-top: 18px;
     }
@@ -204,7 +202,7 @@
     .category-bar {
       width: 100%;
       height: 12px;
-      background: #2C2C2E;
+      background: #E8EBF2;
       border-radius: 6px;
       overflow: hidden;
       display: flex;
@@ -213,7 +211,6 @@
 
     .category-segment {
       height: 100%;
-      transition: width 0.3s ease;
     }
 
     .category-legend-grid {
@@ -224,15 +221,16 @@
 
     .cat-badge-pill {
       font-size: 11px;
-      font-weight: 600;
-      padding: 4px 10px;
+      font-weight: 700;
+      padding: 5px 12px;
       border-radius: 20px;
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      background: var(--card-secondary);
+      background: #FFFFFF;
       border: 1px solid var(--border);
       color: var(--text-primary);
+      box-shadow: 0 1px 3px rgba(19, 23, 34, 0.04);
     }
 
     .cat-dot {
@@ -242,25 +240,23 @@
       flex-shrink: 0;
     }
 
-
-    /* iOS Segmented Control */
+    /* BUY / SELL Style Segmented Control */
     .segmented-control {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      background: var(--card-bg);
+      background: #EAECEF;
       padding: 4px;
       border-radius: 14px;
       border: 1px solid var(--border);
       margin-bottom: 20px;
-      position: relative;
     }
 
     .segment-btn {
       padding: 10px 0;
-      font-size: 15px;
-      font-weight: 600;
-      border: none;
-      border-radius: 11px;
+      font-size: 14px;
+      font-weight: 700;
+      border: 1px solid transparent;
+      border-radius: 10px;
       background: transparent;
       color: var(--text-secondary);
       cursor: pointer;
@@ -268,36 +264,35 @@
       align-items: center;
       justify-content: center;
       gap: 8px;
-      transition: none;
     }
 
     .segment-btn.active.expense {
-      background: rgba(255, 69, 58, 0.16);
-      color: var(--ios-red);
-      border: 1px solid rgba(255, 69, 58, 0.3);
-      box-shadow: 0 2px 8px rgba(255, 69, 58, 0.2);
+      background: #FFFFFF;
+      color: var(--tv-red);
+      border-color: #F87171;
+      box-shadow: 0 2px 6px rgba(242, 54, 69, 0.15);
     }
 
     .segment-btn.active.income {
-      background: rgba(48, 209, 88, 0.16);
-      color: var(--ios-green);
-      border: 1px solid rgba(48, 209, 88, 0.3);
-      box-shadow: 0 2px 8px rgba(48, 209, 88, 0.2);
+      background: #FFFFFF;
+      color: var(--tv-green);
+      border-color: #4ADE80;
+      box-shadow: 0 2px 6px rgba(8, 153, 129, 0.15);
     }
 
-    /* iOS Grouped Card */
+    /* TradingView Clean Cards */
     .ios-card {
-      background: var(--card-bg);
+      background: #FFFFFF;
       border: 1px solid var(--border);
-      border-radius: 20px;
+      border-radius: 18px;
       padding: 20px;
       margin-bottom: 18px;
-      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6);
+      box-shadow: 0 2px 10px rgba(19, 23, 34, 0.04);
     }
 
     .ios-card-title {
-      font-size: 14px;
-      font-weight: 600;
+      font-size: 13px;
+      font-weight: 700;
       color: var(--text-secondary);
       text-transform: uppercase;
       letter-spacing: 0.05em;
@@ -319,44 +314,44 @@
     .form-label {
       display: block;
       font-size: 13px;
-      font-weight: 500;
-      color: var(--text-secondary);
+      font-weight: 600;
+      color: var(--text-primary);
       margin-bottom: 8px;
     }
 
     .ios-input, .ios-select {
       width: 100%;
-      background: var(--card-secondary);
-      border: 1px solid var(--border);
+      background: #F8F9FD;
+      border: 1px solid #D1D4DC;
       color: var(--text-primary);
-      padding: 13px 16px;
-      border-radius: 12px;
-      font-size: 16px;
+      padding: 12px 14px;
+      border-radius: 10px;
+      font-size: 15px;
       font-family: var(--font-family);
+      font-weight: 500;
       outline: none;
-      transition: none;
     }
 
     .ios-input:focus, .ios-select:focus {
-      border-color: var(--border-focus);
-      box-shadow: 0 0 0 1px var(--border-focus);
-      background: #333336;
+      border-color: var(--tv-blue);
+      box-shadow: 0 0 0 3px rgba(41, 98, 255, 0.12);
+      background: #FFFFFF;
     }
 
     .ios-select {
       appearance: none;
-      background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238E8E93' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+      background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235D606B' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
       background-repeat: no-repeat;
       background-position: right 14px center;
       background-size: 16px;
       cursor: pointer;
     }
 
-    /* iOS Upload Zone */
+    /* Upload Zone */
     .upload-zone {
-      border: 1.5px dashed var(--card-tertiary);
-      background: rgba(44, 44, 46, 0.4);
-      border-radius: 16px;
+      border: 2px dashed #CBD2E0;
+      background: #F8F9FD;
+      border-radius: 14px;
       padding: 24px 16px;
       text-align: center;
       cursor: pointer;
@@ -364,29 +359,28 @@
       flex-direction: column;
       align-items: center;
       gap: 10px;
-      transition: none;
     }
 
     .upload-zone:hover {
-      border-color: var(--ios-blue);
-      background: rgba(10, 132, 255, 0.05);
+      border-color: var(--tv-blue);
+      background: rgba(41, 98, 255, 0.03);
     }
 
     .upload-icon-circle {
       width: 48px;
       height: 48px;
       border-radius: 50%;
-      background: var(--card-secondary);
+      background: #EBF2FF;
       display: flex;
       align-items: center;
       justify-content: center;
-      color: var(--ios-blue);
+      color: var(--tv-blue);
     }
 
     .upload-text strong {
       display: block;
       font-size: 15px;
-      font-weight: 600;
+      font-weight: 700;
       color: var(--text-primary);
       margin-bottom: 3px;
     }
@@ -404,12 +398,13 @@
       display: none;
       align-items: center;
       gap: 8px;
-      background: var(--card-secondary);
-      border: 1px solid var(--border);
+      background: #EBF2FF;
+      border: 1px solid #BFDBFE;
       padding: 10px 14px;
-      border-radius: 12px;
+      border-radius: 10px;
       font-size: 13px;
-      color: var(--ios-blue);
+      font-weight: 600;
+      color: var(--tv-blue);
       margin-top: 12px;
       word-break: break-all;
     }
@@ -418,7 +413,7 @@
       display: flex;
     }
 
-    /* iOS Action Buttons */
+    /* Action Buttons */
     .btn-row {
       display: flex;
       gap: 12px;
@@ -427,47 +422,55 @@
 
     .ios-btn {
       flex: 1;
-      padding: 14px 20px;
-      border-radius: 14px;
-      font-size: 16px;
-      font-weight: 600;
+      padding: 13px 20px;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 700;
       font-family: var(--font-family);
-      border: none;
+      border: 1px solid transparent;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 8px;
-      transition: none;
     }
 
     .btn-secondary {
-      background: var(--card-secondary);
+      background: #FFFFFF;
       color: var(--text-primary);
-      border: 1px solid var(--border);
+      border: 1px solid #D1D4DC;
+      box-shadow: 0 1px 3px rgba(19, 23, 34, 0.04);
     }
 
     .btn-secondary:hover {
-      background: var(--card-tertiary);
+      background: #F0F3FA;
+      border-color: #B2B5BE;
     }
 
     .btn-primary {
-      background: var(--ios-blue);
+      background: var(--tv-blue);
       color: #FFFFFF;
-      box-shadow: 0 4px 16px rgba(10, 132, 255, 0.3);
+      box-shadow: 0 2px 8px rgba(41, 98, 255, 0.25);
+    }
+
+    .btn-primary:hover {
+      background: #1E53E5;
     }
 
     .btn-primary:disabled {
-      opacity: 0.4;
+      opacity: 0.45;
       cursor: not-allowed;
       box-shadow: none;
     }
 
     .btn-success {
-      background: var(--ios-green);
-      color: #000000;
-      font-weight: 700;
-      box-shadow: 0 4px 16px rgba(48, 209, 88, 0.3);
+      background: var(--tv-green);
+      color: #FFFFFF;
+      box-shadow: 0 2px 8px rgba(8, 153, 129, 0.25);
+    }
+
+    .btn-success:hover {
+      background: #067865;
     }
 
     /* Verification Card */
@@ -480,8 +483,8 @@
     }
 
     .amount-display-container {
-      background: var(--card-secondary);
-      border-radius: 16px;
+      background: #F8F9FD;
+      border-radius: 14px;
       padding: 20px 16px;
       margin: 14px 0 18px;
       border: 1px solid var(--border);
@@ -489,11 +492,11 @@
     }
 
     .amount-sublabel {
-      font-size: 12px;
+      font-size: 11px;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.08em;
       color: var(--text-secondary);
-      font-weight: 600;
+      font-weight: 700;
       margin-bottom: 6px;
     }
 
@@ -533,7 +536,7 @@
       font-size: 12px;
       color: var(--text-secondary);
       margin-bottom: 8px;
-      font-weight: 500;
+      font-weight: 600;
     }
 
     .candidates-row {
@@ -545,24 +548,24 @@
     }
 
     .candidate-pill {
-      background: var(--card-tertiary);
-      border: 1px solid var(--border);
+      background: #FFFFFF;
+      border: 1px solid #D1D4DC;
       color: var(--text-primary);
       padding: 6px 14px;
       border-radius: 20px;
-      font-size: 14px;
-      font-weight: 600;
+      font-size: 13px;
+      font-weight: 700;
       cursor: pointer;
       display: inline-flex;
       align-items: center;
-      gap: 4px;
-      transition: none;
+      gap: 6px;
+      box-shadow: 0 1px 3px rgba(19, 23, 34, 0.04);
     }
 
     .candidate-pill:hover, .candidate-pill.active {
-      background: rgba(10, 132, 255, 0.2);
-      border-color: var(--ios-blue);
-      color: var(--ios-blue);
+      background: #EBF2FF;
+      border-color: var(--tv-blue);
+      color: var(--tv-blue);
     }
 
     /* Status Notifications */
@@ -575,6 +578,7 @@
       align-items: center;
       gap: 10px;
       line-height: 1.4;
+      font-weight: 500;
     }
 
     .status-box.show {
@@ -582,31 +586,32 @@
     }
 
     .status-box.ok {
-      background: rgba(48, 209, 88, 0.12);
-      border: 1px solid rgba(48, 209, 88, 0.25);
-      color: var(--ios-green);
+      background: #E6F7F3;
+      border: 1px solid #A3E5D4;
+      color: #067865;
     }
 
     .status-box.error {
-      background: rgba(255, 69, 58, 0.12);
-      border: 1px solid rgba(255, 69, 58, 0.25);
-      color: var(--ios-red);
+      background: #FEE8E9;
+      border: 1px solid #FCA5A5;
+      color: #B91C1C;
     }
 
     .status-box.info {
-      background: rgba(10, 132, 255, 0.12);
-      border: 1px solid rgba(10, 132, 255, 0.25);
-      color: var(--ios-blue);
+      background: #EBF2FF;
+      border: 1px solid #BFDBFE;
+      color: #1D4ED8;
     }
 
-    /* Playable Formula Drawer */
+    /* Formula Drawer */
     .formula-card {
-      background: var(--card-bg);
+      background: #FFFFFF;
       border: 1px solid var(--border);
       border-radius: 18px;
       padding: 16px;
       margin-bottom: 20px;
       font-size: 13px;
+      box-shadow: 0 2px 8px rgba(19, 23, 34, 0.04);
     }
 
     .formula-header {
@@ -631,19 +636,7 @@
       display: block;
     }
 
-    .code-box {
-      background: #121214;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 8px 12px;
-      font-family: "JetBrains Mono", monospace;
-      font-size: 12px;
-      color: var(--ios-green);
-      margin: 6px 0;
-      word-break: break-all;
-    }
-
-    /* iOS Inset Footer */
+    /* Footer */
     .ios-footer {
       margin-top: 20px;
       text-align: center;
@@ -653,12 +646,13 @@
       flex-direction: column;
       gap: 8px;
       align-items: center;
+      font-weight: 500;
     }
 
     .ios-footer a {
-      color: var(--ios-blue);
+      color: var(--tv-blue);
       text-decoration: none;
-      font-weight: 500;
+      font-weight: 600;
     }
   </style>
 </head>
@@ -712,7 +706,7 @@
           <span id="stat-tx-count">0 Records</span>
         </div>
         <div class="category-bar" id="categorySegments">
-          <div class="category-segment" style="width: 100%; background: #2C2C2E;"></div>
+          <div class="category-segment" style="width: 100%; background: #E0E3EB;"></div>
         </div>
         <div class="category-legend-grid" id="categoryLegend">
           <!-- Dynamic category pills with colors -->
@@ -921,7 +915,7 @@
       const entries = Object.entries(catTotals).filter(([, val]) => val > 0);
 
       if (entries.length === 0 || totalExpense <= 0) {
-        segContainer.innerHTML = '<div class="category-segment" style="width: 100%; background: #2C2C2E;"></div>';
+        segContainer.innerHTML = '<div class="category-segment" style="width: 100%; background: #E0E3EB;"></div>';
         legContainer.innerHTML = '<span style="font-size:12px; color:var(--text-secondary);">No expenses recorded yet.</span>';
         return;
       }

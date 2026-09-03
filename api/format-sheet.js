@@ -33,35 +33,43 @@ module.exports = async (req, res) => {
     const tabName = sheetObj?.properties?.title || 'Sheet1';
     const existingRuleCount = sheetObj?.conditionalFormats?.length || 0;
 
-    // 1. Write Header and Live Formula KPI Summary Block
-    await sheets.spreadsheets.values.update({
+    // 1. Write Header (A1:F1) and Summary (H1:I5) separately so data rows are never overwritten
+    await sheets.spreadsheets.values.batchUpdate({
       spreadsheetId,
-      range: `${tabName}!A1:I5`,
-      valueInputOption: 'USER_ENTERED',
       requestBody: {
-        values: [
-          ['Timestamp', 'Date', 'Type', 'Category', 'Amount (THB)', 'Description', '', '📊 SUMMARY', '฿ (THB)'],
-          ['', '', '', '', '', '', '', '🟢 Total Income', '=SUMIF(C:C, "Income", E:E)'],
-          ['', '', '', '', '', '', '', '🔴 Total Expense', '=SUMIF(C:C, "Expense", E:E)'],
-          ['', '', '', '', '', '', '', '🔵 Combined Net', '=I2 - I3'],
-          ['', '', '', '', '', '', '', '⭐ Savings Rate', '=IF(I2>0, (I2-I3)/I2, 0)']
+        valueInputOption: 'USER_ENTERED',
+        data: [
+          {
+            range: `${tabName}!A1:F1`,
+            values: [['Timestamp', 'Date', 'Type', 'Category', 'Amount (THB)', 'Description']]
+          },
+          {
+            range: `${tabName}!H1:I5`,
+            values: [
+              ['📊 SUMMARY', '฿ (THB)'],
+              ['🟢 Total Income', '=SUMIF(C:C, "Income", E:E)'],
+              ['🔴 Total Expense', '=SUMIF(C:C, "Expense", E:E)'],
+              ['🔵 Combined Net', '=I2 - I3'],
+              ['⭐ Savings Rate', '=IF(I2>0, (I2-I3)/I2, 0)']
+            ]
+          }
         ]
       }
     });
 
     // 2. Build Category Colors & Conditional Formatting Rules (Yellow for Food, Green for Transport)
     const categories = [
-      { name: 'Food', bg: { red: 1.0, green: 0.95, blue: 0.60 }, fg: { red: 0.60, green: 0.45, blue: 0.0 } }, // 🟡 Yellow (as requested)
-      { name: 'Transport', bg: { red: 0.78, green: 0.94, blue: 0.81 }, fg: { red: 0.08, green: 0.50, blue: 0.20 } }, // 🟢 Green (as requested)
-      { name: 'Shopping', bg: { red: 1.0, green: 0.82, blue: 0.89 }, fg: { red: 0.80, green: 0.12, blue: 0.35 } }, // 🌸 Pink / Rose
-      { name: 'Bills', bg: { red: 1.0, green: 0.86, blue: 0.70 }, fg: { red: 0.82, green: 0.35, blue: 0.0 } }, // ⚡ Orange / Amber
-      { name: 'Health', bg: { red: 1.0, green: 0.84, blue: 0.84 }, fg: { red: 0.80, green: 0.15, blue: 0.15 } }, // 🔴 Soft Coral / Red
-      { name: 'Home', bg: { red: 0.92, green: 0.86, blue: 0.80 }, fg: { red: 0.50, green: 0.32, blue: 0.18 } }, // 🏠 Warm Tan / Sand
-      { name: 'Education', bg: { red: 0.91, green: 0.82, blue: 0.98 }, fg: { red: 0.50, green: 0.12, blue: 0.70 } }, // 📚 Purple
-      { name: 'Entertainment', bg: { red: 0.85, green: 0.86, blue: 0.98 }, fg: { red: 0.22, green: 0.20, blue: 0.70 } }, // 🎬 Indigo
-      { name: 'Investments', bg: { red: 0.80, green: 0.95, blue: 0.98 }, fg: { red: 0.0, green: 0.45, blue: 0.60 } }, // 📈 Cyan
-      { name: 'Salary', bg: { red: 0.82, green: 0.98, blue: 0.88 }, fg: { red: 0.05, green: 0.55, blue: 0.25 } }, // 💼 Mint
-      { name: 'Other', bg: { red: 0.91, green: 0.91, blue: 0.93 }, fg: { red: 0.35, green: 0.35, blue: 0.38 } } // ✨ Charcoal Gray
+      { name: 'Food', bg: { red: 1.0, green: 0.96, blue: 0.65 }, fg: { red: 0.55, green: 0.35, blue: 0.0 } }, // 🟡 Yellow (as requested)
+      { name: 'Transport', bg: { red: 0.82, green: 0.96, blue: 0.85 }, fg: { red: 0.08, green: 0.50, blue: 0.20 } }, // 🟢 Green (as requested)
+      { name: 'Shopping', bg: { red: 0.99, green: 0.88, blue: 0.93 }, fg: { red: 0.75, green: 0.10, blue: 0.35 } }, // 🌸 Pink / Rose
+      { name: 'Bills', bg: { red: 1.0, green: 0.90, blue: 0.78 }, fg: { red: 0.80, green: 0.35, blue: 0.0 } }, // ⚡ Orange / Amber
+      { name: 'Health', bg: { red: 1.0, green: 0.88, blue: 0.88 }, fg: { red: 0.75, green: 0.15, blue: 0.15 } }, // 🔴 Soft Coral / Red
+      { name: 'Home', bg: { red: 0.95, green: 0.90, blue: 0.85 }, fg: { red: 0.50, green: 0.32, blue: 0.18 } }, // 🏠 Warm Tan / Sand
+      { name: 'Education', bg: { red: 0.93, green: 0.88, blue: 0.99 }, fg: { red: 0.45, green: 0.12, blue: 0.70 } }, // 📚 Purple
+      { name: 'Entertainment', bg: { red: 0.88, green: 0.90, blue: 0.99 }, fg: { red: 0.22, green: 0.20, blue: 0.65 } }, // 🎬 Indigo
+      { name: 'Investments', bg: { red: 0.85, green: 0.96, blue: 0.99 }, fg: { red: 0.0, green: 0.45, blue: 0.60 } }, // 📈 Cyan
+      { name: 'Salary', bg: { red: 0.85, green: 0.98, blue: 0.90 }, fg: { red: 0.05, green: 0.55, blue: 0.25 } }, // 💼 Mint
+      { name: 'Other', bg: { red: 0.94, green: 0.95, blue: 0.96 }, fg: { red: 0.35, green: 0.38, blue: 0.42 } } // ✨ Charcoal Gray
     ];
 
     const requests = [];
@@ -76,6 +84,20 @@ module.exports = async (req, res) => {
       });
     }
 
+    // Reset Sheet Background to Clean White & Dark Readable Text (Purge any dark/black background)
+    requests.push({
+      repeatCell: {
+        range: { sheetId, startRowIndex: 0, startColumnIndex: 0, endColumnIndex: 12 },
+        cell: {
+          userEnteredFormat: {
+            backgroundColor: { red: 1.0, green: 1.0, blue: 1.0 },
+            textFormat: { foregroundColor: { red: 0.08, green: 0.09, blue: 0.13 }, fontSize: 10, fontFamily: 'Arial' }
+          }
+        },
+        fields: 'userEnteredFormat(backgroundColor,textFormat(foregroundColor,fontSize,fontFamily))'
+      }
+    });
+
     // Freeze Row 1
     requests.push({
       updateSheetProperties: {
@@ -87,14 +109,14 @@ module.exports = async (req, res) => {
       }
     });
 
-    // Style Header Row (Dark Gray Background, Bold White Text)
+    // Style Header Row A1:F1 (Light TradingView Stone, Crisp Dark Navy Text)
     requests.push({
       repeatCell: {
         range: { sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 6 },
         cell: {
           userEnteredFormat: {
-            backgroundColor: { red: 0.15, green: 0.15, blue: 0.17 },
-            textFormat: { foregroundColor: { red: 1.0, green: 1.0, blue: 1.0 }, bold: true, fontSize: 11 },
+            backgroundColor: { red: 0.94, green: 0.95, blue: 0.98 },
+            textFormat: { foregroundColor: { red: 0.08, green: 0.09, blue: 0.13 }, bold: true, fontSize: 11 },
             horizontalAlignment: 'CENTER'
           }
         },
@@ -102,18 +124,32 @@ module.exports = async (req, res) => {
       }
     });
 
-    // Style Summary Header (H1:I1)
+    // Style Summary Header (H1:I1) - Light TradingView Blue
     requests.push({
       repeatCell: {
         range: { sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 7, endColumnIndex: 9 },
         cell: {
           userEnteredFormat: {
-            backgroundColor: { red: 0.1, green: 0.4, blue: 0.8 },
-            textFormat: { foregroundColor: { red: 1.0, green: 1.0, blue: 1.0 }, bold: true },
+            backgroundColor: { red: 0.88, green: 0.93, blue: 0.98 },
+            textFormat: { foregroundColor: { red: 0.16, green: 0.38, blue: 1.0 }, bold: true, fontSize: 11 },
             horizontalAlignment: 'CENTER'
           }
         },
         fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)'
+      }
+    });
+
+    // Style Summary Card Body (H2:I5) - Soft Card White Background
+    requests.push({
+      repeatCell: {
+        range: { sheetId, startRowIndex: 1, endRowIndex: 5, startColumnIndex: 7, endColumnIndex: 9 },
+        cell: {
+          userEnteredFormat: {
+            backgroundColor: { red: 0.97, green: 0.98, blue: 0.99 },
+            textFormat: { bold: true }
+          }
+        },
+        fields: 'userEnteredFormat(backgroundColor,textFormat.bold)'
       }
     });
 
@@ -161,10 +197,10 @@ module.exports = async (req, res) => {
         rule: {
           ranges: [{ sheetId, startRowIndex: 1, startColumnIndex: 2, endColumnIndex: 3 }],
           booleanRule: {
-            condition: { type: 'TEXT_EQ', values: [{ userEnteredValue: 'Income' }] },
+            condition: { type: 'TEXT_CONTAINS', values: [{ userEnteredValue: 'Income' }] },
             format: {
-              backgroundColor: { red: 0.85, green: 0.98, blue: 0.88 },
-              textFormat: { foregroundColor: { red: 0.05, green: 0.6, blue: 0.2 }, bold: true }
+              backgroundColor: { red: 0.86, green: 0.98, blue: 0.90 },
+              textFormat: { foregroundColor: { red: 0.03, green: 0.58, blue: 0.20 }, bold: true }
             }
           }
         },
@@ -176,10 +212,10 @@ module.exports = async (req, res) => {
         rule: {
           ranges: [{ sheetId, startRowIndex: 1, startColumnIndex: 2, endColumnIndex: 3 }],
           booleanRule: {
-            condition: { type: 'TEXT_EQ', values: [{ userEnteredValue: 'Expense' }] },
+            condition: { type: 'TEXT_CONTAINS', values: [{ userEnteredValue: 'Expense' }] },
             format: {
               backgroundColor: { red: 1.0, green: 0.90, blue: 0.90 },
-              textFormat: { foregroundColor: { red: 0.8, green: 0.15, blue: 0.15 }, bold: true }
+              textFormat: { foregroundColor: { red: 0.85, green: 0.15, blue: 0.15 }, bold: true }
             }
           }
         },
@@ -187,14 +223,14 @@ module.exports = async (req, res) => {
       }
     });
 
-    // Add Category Colors in Column D
+    // Add Category Colors in Column D (Using TEXT_CONTAINS for bulletproof matching)
     categories.forEach((cat, idx) => {
       requests.push({
         addConditionalFormatRule: {
           rule: {
             ranges: [{ sheetId, startRowIndex: 1, startColumnIndex: 3, endColumnIndex: 4 }],
             booleanRule: {
-              condition: { type: 'TEXT_EQ', values: [{ userEnteredValue: cat.name }] },
+              condition: { type: 'TEXT_CONTAINS', values: [{ userEnteredValue: cat.name }] },
               format: {
                 backgroundColor: cat.bg,
                 textFormat: { foregroundColor: cat.fg, bold: true }
@@ -205,7 +241,6 @@ module.exports = async (req, res) => {
         }
       });
     });
-
     await sheets.spreadsheets.batchUpdate({
       spreadsheetId,
       requestBody: { requests }
@@ -213,7 +248,7 @@ module.exports = async (req, res) => {
 
     return res.status(200).json({
       ok: true,
-      message: 'Google Sheet formatted successfully! Formulas and 10 category colors applied.',
+      message: 'Google Sheet formatted successfully! TradingView Light Theme, formulas, and 11 vibrant category colors applied.',
       tabName,
       categoriesCount: categories.length
     });
